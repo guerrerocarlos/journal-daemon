@@ -58,6 +58,10 @@ The implementation invokes `/usr/bin/ssh -o BatchMode=yes carlos@air15 journal-d
 
 On 2026-11-18, `air15` passed `swift test`, `brew install --HEAD --build-from-source journal-daemon`, `brew test journal-daemon`, `journal-daemon bell sounds`, and audible `journal-daemon bell ring --sound Glass`. Tailscale was connected as `air15.amarok-peacock.ts.net`. The remote-send success case remains pending a separate caller with an SSH key authorized for `carlos@air15`; self-SSH correctly rejected an absent key.
 
+## Ingestion and restart acceptance evidence
+
+On 2026-11-18, `air15` compiled the runtime with `swift test`. A synthetic stable WAV under a temporary mounted-root fixture was spooled exactly once and reported `pending=1` after a second scan, proving durable SQLite deduplication. The current source-only formula installed as `HEAD-d6e1b08`; `brew test journal-daemon`, `brew services start journal-daemon`, and `brew services restart journal-daemon` succeeded. The configured destination is still the non-routable example endpoint, so no live media upload has been attempted.
+
 ## Installation page
 
 `docs/index.html` is the repository-owned installation page. GitHub returned `422` when enabling Pages because the current plan does not support Pages for this private repository. Do not add a Pages deployment workflow until the repository is made public with approval or the account supports private-repository Pages.
