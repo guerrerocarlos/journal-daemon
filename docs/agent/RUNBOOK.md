@@ -46,6 +46,10 @@ journal-daemon bell send --device air15 --user carlos --sound Glass
 
 The implementation invokes `/usr/bin/ssh -o BatchMode=yes carlos@air15 journal-daemon bell ring --sound Glass`. It does not open a TCP listener, accept arbitrary shell arguments, or store a shared token. Validate Tailscale connectivity, host-key verification, SSH authorization, and audible output manually on the target Macs before relying on it for agent completion notifications.
 
+### Current acceptance evidence
+
+On 2026-11-18, `air15` passed `swift test`, `brew install --HEAD --build-from-source journal-daemon`, `brew test journal-daemon`, `journal-daemon bell sounds`, and audible `journal-daemon bell ring --sound Glass`. Tailscale was connected as `air15.amarok-peacock.ts.net`. The remote-send success case remains pending a separate caller with an SSH key authorized for `carlos@air15`; self-SSH correctly rejected an absent key.
+
 ## Installation page
 
 `docs/index.html` is the repository-owned installation page. GitHub returned `422` when enabling Pages because the current plan does not support Pages for this private repository. Do not add a Pages deployment workflow until the repository is made public with approval or the account supports private-repository Pages.
