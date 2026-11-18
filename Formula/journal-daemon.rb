@@ -1,7 +1,7 @@
 class JournalDaemon < Formula
   desc "Build and bootstrap the Journal Daemon macOS command-line agent"
   homepage "https://guerrerocarlos.github.io/journal-daemon/"
-  head "ssh://git@github.com/guerrerocarlos/journal-daemon.git", branch: "main"
+  head "https://github.com/guerrerocarlos/journal-daemon.git", branch: "main"
 
   depends_on :macos
   uses_from_macos "swift" => :build

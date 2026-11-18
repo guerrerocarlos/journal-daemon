@@ -10,10 +10,10 @@ This repository contains a source-built macOS daemon, its Homebrew formula, conf
 
 ## Install from source
 
-Open [`docs/index.html`](docs/index.html) for the repository-owned installation page with copyable commands and scope notes. Publishing it through GitHub Pages requires either a plan that supports Pages for this private repository or explicit approval to change repository visibility.
+Visit the public installation page at [guerrerocarlos.github.io/journal-daemon](https://guerrerocarlos.github.io/journal-daemon/).
 
 ```bash
-brew tap guerrerocarlos/journal-daemon git@github.com:guerrerocarlos/journal-daemon.git
+brew tap guerrerocarlos/journal-daemon
 brew trust guerrerocarlos/journal-daemon
 brew install --HEAD --build-from-source journal-daemon
 ```

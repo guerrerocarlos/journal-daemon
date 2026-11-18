@@ -15,7 +15,7 @@
 
 ## 2026-11-18: Bootstrap source installation
 
-- Keep installation instructions in repository-owned `docs/index.html`. GitHub Pages publication requires a supported private-repository plan or explicit approval to make the repository public.
+- Make the repository public so anyone can install from source through Homebrew and access the GitHub Pages installation page.
 - Ship a small Swift bootstrap CLI and a Homebrew `HEAD` formula before the device and API milestones.
 - Require `brew install --HEAD --build-from-source journal-daemon` so Homebrew clones source and Swift compiles the binary on the target Mac.
 - Run the implemented daemon as a per-user Homebrew service with `keep_alive true`; restart recovery comes from its local SQLite state and atomic spool.

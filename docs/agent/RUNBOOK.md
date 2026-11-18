@@ -24,7 +24,7 @@ swift run journal-daemon scan --dry-run --config config/config.example.json
 ## Bootstrap Homebrew checks
 
 ```bash
-brew tap guerrerocarlos/journal-daemon git@github.com:guerrerocarlos/journal-daemon.git
+brew tap guerrerocarlos/journal-daemon
 brew trust guerrerocarlos/journal-daemon
 brew install --HEAD --build-from-source journal-daemon
 brew test journal-daemon
@@ -66,4 +66,4 @@ The installed `air15` formula was subsequently refreshed to `HEAD-93c49a6` and i
 
 ## Installation page
 
-`docs/index.html` is the repository-owned installation page. GitHub returned `422` when enabling Pages because the current plan does not support Pages for this private repository. Do not add a Pages deployment workflow until the repository is made public with approval or the account supports private-repository Pages.
+`docs/index.html` is published by `.github/workflows/pages.yml` through GitHub Pages at `https://guerrerocarlos.github.io/journal-daemon/`. Verify the workflow before declaring the page live.

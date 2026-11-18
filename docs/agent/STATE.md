@@ -2,12 +2,12 @@
 
 Last updated: 2026-11-18
 
-- Repository: `guerrerocarlos/journal-daemon` (private initially)
+- Repository: `guerrerocarlos/journal-daemon` (public as of 2026-11-18)
 - Local workspace: `/home/gnu/journal-daemon`
 - LIFE Telegram topic: `journal-daemon` / topic ID `6232`
 - Phase: local ingestion daemon, Tailscale bell bridge, and Homebrew service implemented
 - A Swift bootstrap CLI and HEAD-only Homebrew formula exist. The formula compiles from source during target-Mac installation, with no bottles or precompiled executables.
-- `docs/index.html` provides the repository-owned installation page. GitHub Pages publishing is blocked because the current plan does not support it for this private repository. MacOS installation acceptance remains pending.
+- `docs/index.html` is deployed through GitHub Pages at `https://guerrerocarlos.github.io/journal-daemon/`.
 - The daemon polls mounted volumes every 15 seconds, rejects unstable files, atomically spools and hashes eligible recordings, stores state in SQLite, and retries idempotent multipart uploads using a Keychain token.
 - The formula defines a per-user `brew services` LaunchAgent with `keep_alive true`. A real DJI device and approved upload API still require hardware and live-service acceptance.
 - `journal-daemon bell ring` plays an allowlisted local macOS system sound. `journal-daemon bell send --device NAME` reaches another enrolled Mac through strict-host-checked SSH over Tailscale MagicDNS.
