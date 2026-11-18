@@ -15,3 +15,9 @@
 
 - Repository and service: not selected.
 - Required boundary: authenticated, streaming, idempotent media import with a durable acknowledgement.
+
+## Tailscale tailnet
+
+- Relationship: transport and authorization boundary for the bell bridge between agent machines and destination Macs such as `air15`.
+- Contract: callers run `journal-daemon bell send --device NAME`, which invokes `tailscale ssh NAME journal-daemon bell ring`. Tailscale SSH ACLs must authorize that exact destination command.
+- Boundary: this repository opens no sound HTTP port and stores no shared tailnet or sound-bridge credential.

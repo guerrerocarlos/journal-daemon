@@ -17,6 +17,7 @@ swift build
 swift test
 swift run journal-daemon config validate --config config/config.example.json
 swift run journal-daemon doctor
+swift run journal-daemon bell sounds
 ```
 
 ## Bootstrap Homebrew checks
@@ -29,6 +30,20 @@ journal-daemon doctor
 ```
 
 The formula runs `swift build --configuration release` during installation. It has not yet been accepted on macOS hardware. `brew services` remains a later milestone because `run` is not implemented.
+
+## Tailscale bell bridge
+
+Install `journal-daemon` and Tailscale on each destination Mac. Tailscale SSH must be enabled and its ACLs must permit the caller to execute `journal-daemon bell ring` on the destination.
+
+```bash
+# On the destination Mac, verify local audio.
+journal-daemon bell ring --sound Glass
+
+# From an authorized Tailscale machine, request a bell on air15.
+journal-daemon bell send --device air15 --sound Glass
+```
+
+The implementation invokes `tailscale ssh air15 journal-daemon bell ring --sound Glass`. It does not open a TCP listener, accept arbitrary shell arguments, or store a shared token. Validate the exact Tailscale ACL and audible output manually on the target Macs before relying on it for agent completion notifications.
 
 ## Installation page
 

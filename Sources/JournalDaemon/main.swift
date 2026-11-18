@@ -6,7 +6,13 @@ private enum ExitCode: Int32 {
     case success = 0
     case usage = 64
     case configuration = 78
+    case unavailable = 69
 }
+
+private let bellSounds = [
+    "Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero", "Morse",
+    "Ping", "Pop", "Purr", "Sosumi", "Submarine", "Tink",
+]
 
 private func usage() {
     print("""
@@ -14,9 +20,13 @@ private func usage() {
       journal-daemon version
       journal-daemon config validate --config PATH
       journal-daemon doctor
+      journal-daemon bell sounds
+      journal-daemon bell ring [--sound SOUND]
+      journal-daemon bell send --device TAILNET_DEVICE [--sound SOUND]
 
     This bootstrap build validates configuration and installation prerequisites.
-    Device ingestion, background service operation, and API upload are not yet implemented.
+    Bell commands use local macOS sounds and Tailscale SSH. Device ingestion,
+    background service operation, and API upload are not yet implemented.
     """)
 }
 
@@ -47,6 +57,81 @@ private struct ValidationError: LocalizedError {
     var errorDescription: String? { message }
 }
 
+private struct BellError: LocalizedError {
+    let message: String
+    init(_ message: String) { self.message = message }
+    var errorDescription: String? { message }
+}
+
+private func selectedBellSound(_ requestedSound: String?) throws -> String {
+    let sound = requestedSound ?? "Glass"
+    guard bellSounds.contains(sound) else {
+        throw BellError("Unknown sound '\(sound)'. Run 'journal-daemon bell sounds' for the allowed names.")
+    }
+    return sound
+}
+
+private func validatedTailnetDevice(_ device: String) throws -> String {
+    let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_")
+    guard !device.isEmpty,
+          device.count <= 253,
+          !device.hasPrefix("-"),
+          device.rangeOfCharacter(from: allowed.inverted) == nil else {
+        throw BellError("Invalid Tailscale device name '\(device)'.")
+    }
+    return device
+}
+
+@discardableResult
+private func runProcess(executable: String, arguments: [String]) throws -> Int32 {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: executable)
+    process.arguments = arguments
+    try process.run()
+    process.waitUntilExit()
+    return process.terminationStatus
+}
+
+private func ringBell(sound: String) throws {
+    let file = "/System/Library/Sounds/\(sound).aiff"
+    guard FileManager.default.isReadableFile(atPath: file) else {
+        throw BellError("The macOS sound file is unavailable: \(file)")
+    }
+    let status = try runProcess(executable: "/usr/bin/afplay", arguments: [file])
+    guard status == 0 else {
+        throw BellError("afplay exited with status \(status).")
+    }
+    print("Rang \(sound).")
+}
+
+private func sendBell(device: String, sound: String) throws {
+    let status = try runProcess(
+        executable: "/usr/bin/env",
+        arguments: ["tailscale", "ssh", device, "journal-daemon", "bell", "ring", "--sound", sound]
+    )
+    guard status == 0 else {
+        throw BellError("Tailscale SSH to \(device) exited with status \(status). Check tailnet SSH ACLs and that journal-daemon is installed on the destination.")
+    }
+    print("Requested \(sound) on \(device).")
+}
+
+private func handleBell(_ arguments: [String]) throws {
+    switch arguments {
+    case ["bell", "sounds"]:
+        print(bellSounds.joined(separator: "\n"))
+    case ["bell", "ring"]:
+        try ringBell(sound: selectedBellSound(nil))
+    case ["bell", "ring", "--sound", let requestedSound]:
+        try ringBell(sound: selectedBellSound(requestedSound))
+    case ["bell", "send", "--device", let requestedDevice]:
+        try sendBell(device: validatedTailnetDevice(requestedDevice), sound: selectedBellSound(nil))
+    case ["bell", "send", "--device", let requestedDevice, "--sound", let requestedSound]:
+        try sendBell(device: validatedTailnetDevice(requestedDevice), sound: selectedBellSound(requestedSound))
+    default:
+        throw BellError("Invalid bell command. Run 'journal-daemon' for usage.")
+    }
+}
+
 private let arguments = Array(CommandLine.arguments.dropFirst())
 
 switch arguments {
@@ -55,6 +140,7 @@ case ["version"]:
 case ["doctor"]:
     print("journal-daemon \(version)")
     print("Bootstrap installation is healthy.")
+    print("Bell sound bridging is available through Tailscale SSH.")
     print("Device ingestion and upload support are not implemented in this build.")
 case ["config", "validate", "--config", let path]:
     do {
@@ -62,6 +148,13 @@ case ["config", "validate", "--config", let path]:
     } catch {
         FileHandle.standardError.write(Data("Configuration validation failed: \(error.localizedDescription)\n".utf8))
         exit(ExitCode.configuration.rawValue)
+    }
+case let bellArguments where bellArguments.first == "bell":
+    do {
+        try handleBell(bellArguments)
+    } catch {
+        FileHandle.standardError.write(Data("Bell command failed: \(error.localizedDescription)\n".utf8))
+        exit(ExitCode.unavailable.rawValue)
     }
 default:
     usage()

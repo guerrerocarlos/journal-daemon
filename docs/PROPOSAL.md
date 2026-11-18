@@ -56,6 +56,7 @@ After that, connecting a matching DJI device causes the agent to:
 - Structured local logs with secret redaction.
 - CLI commands for validation, status, scanning, retrying, and diagnostics.
 - Homebrew source build and `brew services` integration.
+- Tailscale SSH bell bridge for agent completion notifications, using only allowlisted macOS system sounds.
 
 ### Not in the MVP
 
@@ -66,6 +67,7 @@ After that, connecting a matching DJI device causes the agent to:
 - Automatic API provisioning.
 - Homebrew bottles or other precompiled distributions.
 - Uploading files that do not match an explicit source rule.
+- An unauthenticated or token-authenticated inbound sound HTTP endpoint.
 
 ## 4. Architecture decision
 
@@ -109,6 +111,17 @@ journal-daemon run --config ~/.config/journal-daemon/config.json
 ```
 
 The agent should stay running, respond to `SIGTERM`, finish or checkpoint active spool work within a short grace period, and resume safely on its next launch.
+
+### Tailscale bell bridge
+
+The daemon CLI also provides a small completion-notification bridge independent of the future long-running ingestion service:
+
+```bash
+journal-daemon bell ring --sound Glass
+journal-daemon bell send --device air15 --sound Glass
+```
+
+`bell ring` plays one of the checked allowlisted files in `/System/Library/Sounds` through `afplay`. `bell send` invokes `tailscale ssh <device> journal-daemon bell ring ...`; the destination command therefore runs as an identity authorized by the tailnet's SSH ACL. This avoids adding a listening port, shared API token, or generic remote shell facility to the daemon. Each target Mac still needs Tailscale, this command, and a manual audio test.
 
 ### Disk Arbitration discovery
 

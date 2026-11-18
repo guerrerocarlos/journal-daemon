@@ -19,6 +19,22 @@ brew install --HEAD --build-from-source journal-daemon
 
 This intentionally uses the formula's `HEAD` source and compiles with Swift on the target Mac. No bottle or precompiled executable is published.
 
+## Tailscale bell bridge
+
+Any Mac with this command installed can play a built-in macOS sound locally:
+
+```bash
+journal-daemon bell ring --sound Glass
+```
+
+To ring another Tailscale device, such as `air15`, install the command on that Mac and allow Tailscale SSH between the calling identity and the destination. Then an agent or service can use:
+
+```bash
+journal-daemon bell send --device air15 --sound Glass
+```
+
+The sender runs `tailscale ssh air15 journal-daemon bell ring --sound Glass`. No listener or shared bearer token is exposed: Tailscale SSH ACLs remain the authorization boundary. Run `journal-daemon bell sounds` for the allowlisted sound names.
+
 Read [docs/PROPOSAL.md](docs/PROPOSAL.md) for the architecture, delivery plan, API contract, installation design, security model, test strategy, acceptance gates, and open decisions.
 
 ## Privacy

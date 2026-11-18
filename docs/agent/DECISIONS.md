@@ -19,3 +19,9 @@
 - Ship a small Swift bootstrap CLI and a Homebrew `HEAD` formula before the device and API milestones.
 - Require `brew install --HEAD --build-from-source journal-daemon` so Homebrew clones source and Swift compiles the binary on the target Mac.
 - Do not add a service block until `journal-daemon run` has safe, implemented behavior.
+
+## 2026-11-18: Tailscale bell bridge
+
+- Use `tailscale ssh` as the first remote sound transport instead of adding an HTTP listener to every Mac.
+- Restrict sound selection to an allowlist of macOS system sound names and validate destination hostnames before spawning a process.
+- Let Tailscale SSH ACLs authorize callers. Do not add a shared bearer token, inbound port, or arbitrary remote command execution.

@@ -14,6 +14,7 @@ class JournalDaemon < Formula
 
   test do
     assert_match "journal-daemon", shell_output("#{bin}/journal-daemon version")
+    assert_match "Glass", shell_output("#{bin}/journal-daemon bell sounds")
     system bin/"journal-daemon", "config", "validate", "--config",
            pkgshare/"config.example.json"
   end
