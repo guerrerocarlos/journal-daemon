@@ -13,7 +13,7 @@ This repository now contains a source-built bootstrap CLI, its Homebrew formula,
 Open [`docs/index.html`](docs/index.html) for the repository-owned installation page with copyable commands and scope notes. Publishing it through GitHub Pages requires either a plan that supports Pages for this private repository or explicit approval to change repository visibility.
 
 ```bash
-brew tap guerrerocarlos/journal-daemon https://github.com/guerrerocarlos/journal-daemon
+brew tap guerrerocarlos/journal-daemon git@github.com:guerrerocarlos/journal-daemon.git
 brew trust guerrerocarlos/journal-daemon
 brew install --HEAD --build-from-source journal-daemon
 ```
