@@ -66,4 +66,4 @@ The installed `air15` formula was subsequently refreshed to `HEAD-93c49a6` and i
 
 ## Installation page
 
-`docs/index.html` is published by `.github/workflows/pages.yml` through GitHub Pages at `https://guerrerocarlos.github.io/journal-daemon/`. Verify the workflow before declaring the page live.
+`docs/index.html` is published by `.github/workflows/pages.yml` through GitHub Pages at `https://guerrerocarlos.github.io/journal-daemon/`. Workflow `44371486972` completed successfully on 2026-11-18; a cache-busted live fetch confirmed the current installation and configuration copy.
