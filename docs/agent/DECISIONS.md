@@ -12,3 +12,10 @@
 - Use SQLite and SHA-256 for crash recovery, acknowledgement state, and deduplication.
 - Never delete or modify DJI source files in the MVP.
 - Keep the repository private initially. Public visibility for simpler distribution requires explicit approval.
+
+## 2026-11-18: Bootstrap source installation
+
+- Publish installation instructions from repository-owned `docs/index.html` through GitHub Pages.
+- Ship a small Swift bootstrap CLI and a Homebrew `HEAD` formula before the device and API milestones.
+- Require `brew install --HEAD --build-from-source journal-daemon` so Homebrew clones source and Swift compiles the binary on the target Mac.
+- Do not add a service block until `journal-daemon run` has safe, implemented behavior.
