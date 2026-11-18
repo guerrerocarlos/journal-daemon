@@ -24,7 +24,7 @@ public struct Configuration: Codable {
     public let version: Int; public let sources: [Source]; public let destination: Destination; public let spool: Spool; public let behavior: Behavior; public let logging: Logging
 
     public static func load(path: String) throws -> Configuration {
-        let url = URL(fileURLWithPath: path).standardizedFileURL
+        let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).standardizedFileURL
         let data = try Data(contentsOf: url)
         let config = try JSONDecoder().decode(Configuration.self, from: data)
         guard config.version == 1, !config.sources.isEmpty else { throw DaemonError.message("Configuration requires version 1 and at least one source.") }
@@ -110,7 +110,11 @@ public final class Ingestor {
     public func retryAll() throws { try store.retryAll() }
 }
 
-enum Keychain { static func token(service: String, account: String) throws -> String { var item: CFTypeRef?; let status = SecItemCopyMatching([kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account, kSecReturnData: true] as CFDictionary, &item); guard status == errSecSuccess, let data = item as? Data, let value = String(data: data, encoding: .utf8) else { throw DaemonError.message("No Keychain token found. Run journal-daemon auth set-token.") }; return value } }
+public enum Keychain {
+    public static func token(service: String, account: String) throws { _ = try value(service: service, account: account) }
+    public static func value(service: String, account: String) throws -> String { var item: CFTypeRef?; let status = SecItemCopyMatching([kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account, kSecReturnData: true] as CFDictionary, &item); guard status == errSecSuccess, let data = item as? Data, let value = String(data: data, encoding: .utf8) else { throw DaemonError.message("No Keychain token found. Run journal-daemon auth set-token.") }; return value }
+    public static func set(_ value: String, service: String, account: String) throws { let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]; let attributes: [CFString: Any] = [kSecValueData: Data(value.utf8)]; let update = SecItemUpdate(query as CFDictionary, attributes as CFDictionary); if update == errSecItemNotFound { var add = query; add[kSecValueData] = Data(value.utf8); guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { throw DaemonError.message("Could not save Keychain token.") } } else if update != errSecSuccess { throw DaemonError.message("Could not update Keychain token.") } }
+}
 
 enum Uploader {
     static func upload(record: [String: String], config: Configuration, token: String) throws -> String? {

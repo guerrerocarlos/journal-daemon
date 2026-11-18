@@ -12,6 +12,14 @@ class JournalDaemon < Formula
     pkgshare.install "config/config.example.json"
   end
 
+  service do
+    run [opt_bin/"journal-daemon", "run", "--config", "#{Dir.home}/.config/journal-daemon/config.json"]
+    keep_alive true
+    process_type :background
+    log_path "#{Dir.home}/Library/Logs/com.guerrerocarlos.journal-daemon/service.log"
+    error_log_path "#{Dir.home}/Library/Logs/com.guerrerocarlos.journal-daemon/service-error.log"
+  end
+
   test do
     assert_match "journal-daemon", shell_output("#{bin}/journal-daemon version")
     assert_match "Glass", shell_output("#{bin}/journal-daemon bell sounds")
