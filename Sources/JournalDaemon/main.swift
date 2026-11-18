@@ -116,18 +116,21 @@ private func sendBell(device: String, sound: String) throws {
 }
 
 private func handleBell(_ arguments: [String]) throws {
-    switch arguments {
-    case ["bell", "sounds"]:
+    if arguments == ["bell", "sounds"] {
         print(bellSounds.joined(separator: "\n"))
-    case ["bell", "ring"]:
+    } else if arguments == ["bell", "ring"] {
         try ringBell(sound: selectedBellSound(nil))
-    case ["bell", "ring", "--sound", let requestedSound]:
-        try ringBell(sound: selectedBellSound(requestedSound))
-    case ["bell", "send", "--device", let requestedDevice]:
-        try sendBell(device: validatedTailnetDevice(requestedDevice), sound: selectedBellSound(nil))
-    case ["bell", "send", "--device", let requestedDevice, "--sound", let requestedSound]:
-        try sendBell(device: validatedTailnetDevice(requestedDevice), sound: selectedBellSound(requestedSound))
-    default:
+    } else if arguments.count == 4,
+              Array(arguments[0...2]) == ["bell", "ring", "--sound"] {
+        try ringBell(sound: selectedBellSound(arguments[3]))
+    } else if arguments.count == 4,
+              Array(arguments[0...2]) == ["bell", "send", "--device"] {
+        try sendBell(device: validatedTailnetDevice(arguments[3]), sound: selectedBellSound(nil))
+    } else if arguments.count == 6,
+              Array(arguments[0...2]) == ["bell", "send", "--device"],
+              arguments[4] == "--sound" {
+        try sendBell(device: validatedTailnetDevice(arguments[3]), sound: selectedBellSound(arguments[5]))
+    } else {
         throw BellError("Invalid bell command. Run 'journal-daemon' for usage.")
     }
 }
@@ -142,9 +145,10 @@ case ["doctor"]:
     print("Bootstrap installation is healthy.")
     print("Bell sound bridging is available through Tailscale SSH.")
     print("Device ingestion and upload support are not implemented in this build.")
-case ["config", "validate", "--config", let path]:
+case let configurationArguments where configurationArguments.count == 4,
+                                  Array(configurationArguments[0...2]) == ["config", "validate", "--config"]:
     do {
-        try validateConfiguration(at: path)
+        try validateConfiguration(at: configurationArguments[3])
     } catch {
         FileHandle.standardError.write(Data("Configuration validation failed: \(error.localizedDescription)\n".utf8))
         exit(ExitCode.configuration.rawValue)
