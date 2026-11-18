@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "dji-mic",
+      "volume": {
+        "nameRegex": "^DJI.*",
+        "volumeUUID": null,
+        "requireRemovable": true
+      },
+      "roots": [
+        "."
+      ],
+      "includeExtensions": [
+        "wav",
+        "mp3",
+        "m4a"
+      ],
+      "excludeNameRegex": "(^\\.|firmware|update)",
+      "stableForSeconds": 5
+    }
+  ],
+  "destination": {
+    "baseURL": "https://journal-api.example.com",
+    "importPath": "/v1/journal/imports",
+    "auth": {
+      "type": "keychain",
+      "service": "com.guerrerocarlos.journal-daemon",
+      "account": "default"
+    },
+    "requestTimeoutSeconds": 120
+  },
+  "spool": {
+    "directory": "~/Library/Caches/com.guerrerocarlos.journal-daemon/spool",
+    "maximumBytes": 21474836480
+  },
+  "behavior": {
+    "scanMountedVolumesAtStartup": true,
+    "uploadConcurrency": 2,
+    "deleteSourceAfterUpload": false,
+    "keepSpoolAfterUpload": false
+  },
+  "logging": {
+    "level": "info",
+    "directory": "~/Library/Logs/com.guerrerocarlos.journal-daemon"
+  }
+}

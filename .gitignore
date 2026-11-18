@@ -1,0 +1,16 @@
+.DS_Store
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+.journal-daemon/
+state.sqlite*
+spool/
+config.json
+*.token
+*.wav
+*.WAV
+*.mp3
+*.m4a
+*.aac
