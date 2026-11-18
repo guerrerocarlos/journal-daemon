@@ -105,9 +105,27 @@ private func ringBell(sound: String) throws {
 }
 
 private func sendBell(device: String, sound: String) throws {
+    let tailscaleCandidates = [
+        "/opt/homebrew/bin/tailscale",
+        "/usr/local/bin/tailscale",
+        "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
+    ]
+    let tailscaleExecutable = tailscaleCandidates.first(where: {
+        FileManager.default.isExecutableFile(atPath: $0)
+    })
+    let command = ["ssh", device, "journal-daemon", "bell", "ring", "--sound", sound]
+    let executable: String
+    let arguments: [String]
+    if let tailscaleExecutable {
+        executable = tailscaleExecutable
+        arguments = command
+    } else {
+        executable = "/usr/bin/env"
+        arguments = ["tailscale"] + command
+    }
     let status = try runProcess(
-        executable: "/usr/bin/env",
-        arguments: ["tailscale", "ssh", device, "journal-daemon", "bell", "ring", "--sound", sound]
+        executable: executable,
+        arguments: arguments
     )
     guard status == 0 else {
         throw BellError("Tailscale SSH to \(device) exited with status \(status). Check tailnet SSH ACLs and that journal-daemon is installed on the destination.")
