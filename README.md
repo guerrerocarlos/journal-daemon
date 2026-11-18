@@ -10,7 +10,7 @@ This repository now contains a source-built bootstrap CLI, its Homebrew formula,
 
 ## Install from source
 
-The [installation page](https://guerrerocarlos.github.io/journal-daemon/) contains the current copyable commands and scope notes.
+Open [`docs/index.html`](docs/index.html) for the repository-owned installation page with copyable commands and scope notes. Publishing it through GitHub Pages requires either a plan that supports Pages for this private repository or explicit approval to change repository visibility.
 
 ```bash
 brew tap guerrerocarlos/journal-daemon https://github.com/guerrerocarlos/journal-daemon

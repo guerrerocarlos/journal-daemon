@@ -32,4 +32,4 @@ The formula runs `swift build --configuration release` during installation. It h
 
 ## Installation page
 
-`docs/index.html` is published by `.github/workflows/pages.yml` through GitHub Pages. The workflow enables Pages and deploys through GitHub Actions. The expected URL is `https://guerrerocarlos.github.io/journal-daemon/`.
+`docs/index.html` is the repository-owned installation page. GitHub returned `422` when enabling Pages because the current plan does not support Pages for this private repository. Do not add a Pages deployment workflow until the repository is made public with approval or the account supports private-repository Pages.
