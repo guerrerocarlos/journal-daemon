@@ -32,7 +32,7 @@ journal-daemon auth set-token --config ~/.config/journal-daemon/config.json
 brew services start journal-daemon
 ```
 
-Check the durable spool and service with `journal-daemon status --config ~/.config/journal-daemon/config.json` and `brew services list`. The checked-in endpoint is a placeholder, so replace `destination.baseURL` only with the approved HTTPS import API before storing a token.
+`auth set-token` uses a no-echo interactive prompt. Check the durable spool and service with `journal-daemon status --config ~/.config/journal-daemon/config.json` and `brew services list`. The checked-in endpoint is a placeholder, so replace `destination.baseURL` only with the approved HTTPS import API before storing a token.
 
 ## Tailscale bell bridge
 
