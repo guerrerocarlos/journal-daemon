@@ -145,8 +145,8 @@ case ["doctor"]:
     print("Bootstrap installation is healthy.")
     print("Bell sound bridging is available through Tailscale SSH.")
     print("Device ingestion and upload support are not implemented in this build.")
-case let configurationArguments where configurationArguments.count == 4,
-                                  Array(configurationArguments[0...2]) == ["config", "validate", "--config"]:
+case let configurationArguments where configurationArguments.count == 4 &&
+    Array(configurationArguments[0...2]) == ["config", "validate", "--config"]:
     do {
         try validateConfiguration(at: configurationArguments[3])
     } catch {
