@@ -32,3 +32,9 @@
 - Use strict-host-checked system SSH over Tailscale MagicDNS as the first remote sound transport instead of adding an HTTP listener to every Mac. Tailscale SSH server mode was not enabled on the first target Mac.
 - Restrict sound selection to an allowlist of macOS system sound names and validate destination hostnames before spawning a process.
 - Require ordinary SSH key and host-key authorization over the tailnet. Do not add a shared bearer token, inbound port, or arbitrary remote command execution.
+
+## 2026-11-18: Telegram bridge media ingestion
+
+- Deliver spool files to the existing Telegram bridge over Tailscale HTTPS, not directly to the Journal Git repository.
+- Require a bridge bearer token in macOS Keychain, SHA-256 idempotency, and an explicit configured Telegram chat and forum-topic route in each daemon destination.
+- The bridge must reject unbound routes, then send the audio into the requested topic and feed the same bytes through the Journal archival pipeline.

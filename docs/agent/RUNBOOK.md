@@ -38,7 +38,16 @@ brew services list
 journal-daemon status --config ~/.config/journal-daemon/config.json
 ```
 
-The formula runs `swift build --configuration release` during installation. The service will remain healthy without a Keychain token when there are no pending spooled files. Before enabling uploads, replace the example endpoint and use `journal-daemon auth set-token --config ~/.config/journal-daemon/config.json` to save the approved token to Keychain.
+The formula runs `swift build --configuration release` during installation. The service will remain healthy without a Keychain token when there are no pending spooled files. Before enabling uploads, set the Tailscale bridge hostname plus a bound Telegram `chatId` and `messageThreadId`, then use `journal-daemon auth set-token --config ~/.config/journal-daemon/config.json` to save the approved token to Keychain. The token is never stored in JSON.
+
+## Telegram bridge ingestion
+
+The daemon uploads multipart audio to `https://<bridge-tailnet-name>/journal-daemon/v1/imports`. Its `destination.route` selects the Telegram group and forum topic. The LIFE Journal route is chat `-1004361900873`, topic `5701`. The bridge checks the exact route is currently bound and configured for Journal media, then posts the audio and archives it. The endpoint is Tailscale-only and its bearer token must be configured in the bridge service environment.
+
+```bash
+brew services restart journal-daemon
+journal-daemon status --config ~/.config/journal-daemon/config.json
+```
 
 ## Tailscale bell bridge
 

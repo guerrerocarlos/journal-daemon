@@ -13,8 +13,9 @@
 
 ## Upload API
 
-- Repository and service: not selected.
-- Required boundary: authenticated, streaming, idempotent media import with a durable acknowledgement.
+- Repository and service: `/home/gnu/codex-cli-over-telegram`.
+- Contract: Tailscale HTTPS `POST /journal-daemon/v1/imports`, bearer authentication from macOS Keychain, multipart `metadata` plus `file`, SHA-256 idempotency key, and a route containing `chatId` and `messageThreadId`.
+- Boundary: the bridge validates the route is an existing bound Journal topic, sends audio to that topic, and archives it. The daemon never receives Telegram bot credentials or pushes directly to the Journal Git repository.
 
 ## Tailscale tailnet
 

@@ -21,8 +21,12 @@
     }
   ],
   "destination": {
-    "baseURL": "https://journal-api.example.com",
-    "importPath": "/v1/journal/imports",
+    "baseURL": "https://bridge.tailnet.ts.net",
+    "importPath": "/journal-daemon/v1/imports",
+    "route": {
+      "chatId": 0,
+      "messageThreadId": 0
+    },
     "auth": {
       "type": "keychain",
       "service": "com.guerrerocarlos.journal-daemon",
