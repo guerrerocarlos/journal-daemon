@@ -5,10 +5,14 @@ let package = Package(
     name: "JournalDaemon",
     platforms: [.macOS(.v13)],
     products: [
-        .executable(name: "journal-daemon", targets: ["JournalDaemon"]),
+        .executable(name: "journal-daemon", targets: ["JournalDaemonCLI"]),
     ],
     targets: [
-        .executableTarget(name: "JournalDaemon"),
-        .testTarget(name: "JournalDaemonTests", dependencies: ["JournalDaemon"]),
+        .target(
+            name: "JournalDaemonCore",
+            linkerSettings: [.linkedLibrary("sqlite3")]
+        ),
+        .executableTarget(name: "JournalDaemonCLI", dependencies: ["JournalDaemonCore"]),
+        .testTarget(name: "JournalDaemonTests", dependencies: ["JournalDaemonCore"]),
     ]
 )
