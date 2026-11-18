@@ -32,4 +32,4 @@ The formula runs `swift build --configuration release` during installation. It h
 
 ## Installation page
 
-`docs/index.html` is published by `.github/workflows/pages.yml` through GitHub Pages after the repository's Pages source is configured for GitHub Actions. The expected URL is `https://guerrerocarlos.github.io/journal-daemon/`.
+`docs/index.html` is published by `.github/workflows/pages.yml` through GitHub Pages. The workflow enables Pages and deploys through GitHub Actions. The expected URL is `https://guerrerocarlos.github.io/journal-daemon/`.
