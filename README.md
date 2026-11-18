@@ -14,6 +14,7 @@ Open [`docs/index.html`](docs/index.html) for the repository-owned installation 
 
 ```bash
 brew tap guerrerocarlos/journal-daemon https://github.com/guerrerocarlos/journal-daemon
+brew trust guerrerocarlos/journal-daemon
 brew install --HEAD --build-from-source journal-daemon
 ```
 

@@ -24,6 +24,7 @@ swift run journal-daemon bell sounds
 
 ```bash
 brew tap guerrerocarlos/journal-daemon git@github.com:guerrerocarlos/journal-daemon.git
+brew trust guerrerocarlos/journal-daemon
 brew install --HEAD --build-from-source journal-daemon
 brew test journal-daemon
 journal-daemon doctor
