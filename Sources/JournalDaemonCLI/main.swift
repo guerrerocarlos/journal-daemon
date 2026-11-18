@@ -18,8 +18,8 @@ let args = Array(CommandLine.arguments.dropFirst()); do {
     else if args.first == "status" { let summary = try Ingestor(config: config(args)).status(); print(summary.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: "\n")) }
     else if args.first == "retry" { try Ingestor(config: config(args)).retryAll(); print("Pending uploads scheduled for retry.") }
     else if args.first == "run" { try run(config(args)) }
-    else if args == ["auth", "test"] { let c = try config(args); try Keychain.token(service: c.destination.auth.service, account: c.destination.auth.account); print("Keychain token is available.") }
-    else if args == ["auth", "set-token"] { try setToken(config(args)) }
+    else if args.count >= 2 && Array(args[0...1]) == ["auth", "test"] { let c = try config(args); try Keychain.token(service: c.destination.auth.service, account: c.destination.auth.account); print("Keychain token is available.") }
+    else if args.count >= 2 && Array(args[0...1]) == ["auth", "set-token"] { try setToken(config(args)) }
     else if args == ["bell", "sounds"] { print(sounds.joined(separator: "\n")) }
     else if args == ["bell", "ring"] { try ring("Glass") }
     else if args.count == 4 && Array(args[0...2]) == ["bell", "ring", "--sound"] { try ring(args[3]) }

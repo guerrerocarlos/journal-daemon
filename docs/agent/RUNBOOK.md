@@ -8,7 +8,7 @@ git diff --check
 python3 -m json.tool config/config.example.json >/dev/null
 ```
 
-The bootstrap CLI exists, but there is no executable service, device ingestion, or upload integration yet.
+The executable service scans mounted volumes every 15 seconds. It only uploads after a file has been atomically spooled and recorded in local SQLite state.
 
 ## Bootstrap developer checks
 
@@ -18,6 +18,7 @@ swift test
 swift run journal-daemon config validate --config config/config.example.json
 swift run journal-daemon doctor
 swift run journal-daemon bell sounds
+swift run journal-daemon scan --dry-run --config config/config.example.json
 ```
 
 ## Bootstrap Homebrew checks
@@ -28,9 +29,16 @@ brew trust guerrerocarlos/journal-daemon
 brew install --HEAD --build-from-source journal-daemon
 brew test journal-daemon
 journal-daemon doctor
+mkdir -p ~/.config/journal-daemon
+cp "$(brew --prefix journal-daemon)/share/journal-daemon/config.example.json" ~/.config/journal-daemon/config.json
+chmod 600 ~/.config/journal-daemon/config.json
+journal-daemon config validate --config ~/.config/journal-daemon/config.json
+brew services start journal-daemon
+brew services list
+journal-daemon status --config ~/.config/journal-daemon/config.json
 ```
 
-The formula runs `swift build --configuration release` during installation. It has not yet been accepted on macOS hardware. `brew services` remains a later milestone because `run` is not implemented.
+The formula runs `swift build --configuration release` during installation. The service will remain healthy without a Keychain token when there are no pending spooled files. Before enabling uploads, replace the example endpoint and use `journal-daemon auth set-token --config ~/.config/journal-daemon/config.json` to save the approved token to Keychain.
 
 ## Tailscale bell bridge
 

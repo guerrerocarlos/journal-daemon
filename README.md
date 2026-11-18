@@ -6,7 +6,7 @@ The proposed application is installed through Homebrew and compiled from source 
 
 ## Current status
 
-This repository now contains a source-built bootstrap CLI, its Homebrew formula, configuration example, and an installation page. It does not yet contain device ingestion, a background service, a working upload API, or hardware acceptance evidence.
+This repository contains a source-built macOS daemon, its Homebrew formula, configuration example, and an installation page. It scans matching mounted volumes, atomically spools stable recordings, records durable state in SQLite, retries idempotent uploads, and runs as a per-user Homebrew service. Hardware and live API acceptance remain separate.
 
 ## Install from source
 
@@ -19,6 +19,20 @@ brew install --HEAD --build-from-source journal-daemon
 ```
 
 This intentionally uses the formula's `HEAD` source and compiles with Swift on the target Mac. No bottle or precompiled executable is published.
+
+## Configure and run
+
+```bash
+mkdir -p ~/.config/journal-daemon
+cp "$(brew --prefix journal-daemon)/share/journal-daemon/config.example.json" \
+  ~/.config/journal-daemon/config.json
+chmod 600 ~/.config/journal-daemon/config.json
+journal-daemon config validate --config ~/.config/journal-daemon/config.json
+journal-daemon auth set-token --config ~/.config/journal-daemon/config.json
+brew services start journal-daemon
+```
+
+Check the durable spool and service with `journal-daemon status --config ~/.config/journal-daemon/config.json` and `brew services list`. The checked-in endpoint is a placeholder, so replace `destination.baseURL` only with the approved HTTPS import API before storing a token.
 
 ## Tailscale bell bridge
 

@@ -18,7 +18,14 @@
 - Keep installation instructions in repository-owned `docs/index.html`. GitHub Pages publication requires a supported private-repository plan or explicit approval to make the repository public.
 - Ship a small Swift bootstrap CLI and a Homebrew `HEAD` formula before the device and API milestones.
 - Require `brew install --HEAD --build-from-source journal-daemon` so Homebrew clones source and Swift compiles the binary on the target Mac.
-- Do not add a service block until `journal-daemon run` has safe, implemented behavior.
+- Run the implemented daemon as a per-user Homebrew service with `keep_alive true`; restart recovery comes from its local SQLite state and atomic spool.
+
+## 2026-11-18: Ingestion runtime
+
+- Poll mounted volumes every 15 seconds as the portable first implementation of live device discovery. A startup scan and durable state make restarts safe.
+- Copy eligible stable files into the local spool before any network operation, compute SHA-256 while copying, and record the copy in SQLite before upload.
+- Use Keychain for the destination bearer token, HTTPS-only destination URLs, an idempotency key derived from SHA-256, and bounded retry backoff in SQLite.
+- Keep source-device files immutable and reject configuration that requests source deletion.
 
 ## 2026-11-18: Tailscale bell bridge
 
