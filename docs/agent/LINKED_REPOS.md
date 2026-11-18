@@ -9,7 +9,7 @@
 ## LIFE Manager
 
 - Repository: `guerrerocarlos/life-manager`
-- Relationship: household worklog and durable cross-project context.
+- Relationship: household worklog, durable cross-project context, and fleet registration for LIFE Telegram topic `journal-daemon` / topic ID `6232`.
 
 ## Upload API
 
