@@ -22,6 +22,6 @@
 
 ## 2026-11-18: Tailscale bell bridge
 
-- Use `tailscale ssh` as the first remote sound transport instead of adding an HTTP listener to every Mac.
+- Use strict-host-checked system SSH over Tailscale MagicDNS as the first remote sound transport instead of adding an HTTP listener to every Mac. Tailscale SSH server mode was not enabled on the first target Mac.
 - Restrict sound selection to an allowlist of macOS system sound names and validate destination hostnames before spawning a process.
-- Let Tailscale SSH ACLs authorize callers. Do not add a shared bearer token, inbound port, or arbitrary remote command execution.
+- Require ordinary SSH key and host-key authorization over the tailnet. Do not add a shared bearer token, inbound port, or arbitrary remote command execution.

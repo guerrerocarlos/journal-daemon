@@ -121,7 +121,7 @@ journal-daemon bell ring --sound Glass
 journal-daemon bell send --device air15 --sound Glass
 ```
 
-`bell ring` plays one of the checked allowlisted files in `/System/Library/Sounds` through `afplay`. `bell send` invokes `tailscale ssh <device> journal-daemon bell ring ...`; the destination command therefore runs as an identity authorized by the tailnet's SSH ACL. This avoids adding a listening port, shared API token, or generic remote shell facility to the daemon. Each target Mac still needs Tailscale, this command, and a manual audio test.
+`bell ring` plays one of the checked allowlisted files in `/System/Library/Sounds` through `afplay`. `bell send` invokes strict-host-checked system SSH over Tailscale MagicDNS, for example `ssh carlos@air15 journal-daemon bell ring ...`. The destination SSH key policy and known-host verification authorize the action. This avoids adding a listening port, shared API token, or generic remote shell facility to the daemon. Each target Mac still needs Tailscale, this command, SSH authorization, and a manual audio test.
 
 ### Disk Arbitration discovery
 

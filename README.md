@@ -31,10 +31,10 @@ journal-daemon bell ring --sound Glass
 To ring another Tailscale device, such as `air15`, install the command on that Mac and allow Tailscale SSH between the calling identity and the destination. Then an agent or service can use:
 
 ```bash
-journal-daemon bell send --device air15 --sound Glass
+journal-daemon bell send --device air15 --user carlos --sound Glass
 ```
 
-The sender runs `tailscale ssh air15 journal-daemon bell ring --sound Glass`. No listener or shared bearer token is exposed: Tailscale SSH ACLs remain the authorization boundary. Run `journal-daemon bell sounds` for the allowlisted sound names.
+The sender runs strict-host-checked SSH to the Tailscale MagicDNS device, then calls `journal-daemon bell ring --sound Glass`. No listener or shared bearer token is exposed. The caller needs an authorized SSH key and a trusted host key; `--user` defaults to the caller's local macOS user. Run `journal-daemon bell sounds` for the allowlisted sound names.
 
 Read [docs/PROPOSAL.md](docs/PROPOSAL.md) for the architecture, delivery plan, API contract, installation design, security model, test strategy, acceptance gates, and open decisions.
 

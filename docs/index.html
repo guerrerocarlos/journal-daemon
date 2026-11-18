@@ -56,9 +56,9 @@ journal-daemon doctor</code></pre>
 
       <section>
         <h2>Ring a Tailscale device</h2>
-        <p>Install the command on each destination Mac, enable Tailscale SSH, and permit the caller in your tailnet ACL. Agents can then request a distinct completion sound without exposing a web listener or a shared token.</p>
+        <p>Install the command on each destination Mac, connect it to Tailscale, and authorize the caller's normal SSH key. Agents can then request a distinct completion sound without exposing a web listener or a shared token.</p>
         <button type="button" data-copy="bell">Copy</button>
-        <pre id="bell"><code>journal-daemon bell send --device air15 --sound Glass</code></pre>
+        <pre id="bell"><code>journal-daemon bell send --device air15 --user carlos --sound Glass</code></pre>
         <p>The destination runs the allowlisted local command <code>journal-daemon bell ring --sound Glass</code>. Use <code>journal-daemon bell sounds</code> to list supported macOS system sounds.</p>
       </section>
 

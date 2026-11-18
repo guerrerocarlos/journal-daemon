@@ -19,5 +19,5 @@
 ## Tailscale tailnet
 
 - Relationship: transport and authorization boundary for the bell bridge between agent machines and destination Macs such as `air15`.
-- Contract: callers run `journal-daemon bell send --device NAME`, which invokes `tailscale ssh NAME journal-daemon bell ring`. Tailscale SSH ACLs must authorize that exact destination command.
+- Contract: callers run `journal-daemon bell send --device NAME`, which invokes strict-host-checked SSH over Tailscale MagicDNS to run `journal-daemon bell ring`. Destination SSH authorization and known-host verification are required.
 - Boundary: this repository opens no sound HTTP port and stores no shared tailnet or sound-bridge credential.

@@ -22,10 +22,10 @@ private func usage() {
       journal-daemon doctor
       journal-daemon bell sounds
       journal-daemon bell ring [--sound SOUND]
-      journal-daemon bell send --device TAILNET_DEVICE [--sound SOUND]
+      journal-daemon bell send --device TAILNET_DEVICE [--user SSH_USER] [--sound SOUND]
 
     This bootstrap build validates configuration and installation prerequisites.
-    Bell commands use local macOS sounds and Tailscale SSH. Device ingestion,
+    Bell commands use local macOS sounds and SSH over Tailscale. Device ingestion,
     background service operation, and API upload are not yet implemented.
     """)
 }
@@ -82,6 +82,17 @@ private func validatedTailnetDevice(_ device: String) throws -> String {
     return device
 }
 
+private func validatedSSHUser(_ user: String) throws -> String {
+    let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")
+    guard !user.isEmpty,
+          user.count <= 64,
+          !user.hasPrefix("-"),
+          user.rangeOfCharacter(from: allowed.inverted) == nil else {
+        throw BellError("Invalid SSH user '\(user)'.")
+    }
+    return user
+}
+
 @discardableResult
 private func runProcess(executable: String, arguments: [String]) throws -> Int32 {
     let process = Process()
@@ -104,33 +115,48 @@ private func ringBell(sound: String) throws {
     print("Rang \(sound).")
 }
 
-private func sendBell(device: String, sound: String) throws {
-    let tailscaleCandidates = [
-        "/opt/homebrew/bin/tailscale",
-        "/usr/local/bin/tailscale",
-        "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
-    ]
-    let tailscaleExecutable = tailscaleCandidates.first(where: {
-        FileManager.default.isExecutableFile(atPath: $0)
-    })
-    let command = ["ssh", device, "journal-daemon", "bell", "ring", "--sound", sound]
-    let executable: String
-    let arguments: [String]
-    if let tailscaleExecutable {
-        executable = tailscaleExecutable
-        arguments = command
-    } else {
-        executable = "/usr/bin/env"
-        arguments = ["tailscale"] + command
-    }
+private func sendBell(device: String, user: String, sound: String) throws {
     let status = try runProcess(
-        executable: executable,
-        arguments: arguments
+        executable: "/usr/bin/ssh",
+        arguments: ["-o", "BatchMode=yes", "\(user)@\(device)", "journal-daemon", "bell", "ring", "--sound", sound]
     )
     guard status == 0 else {
-        throw BellError("Tailscale SSH to \(device) exited with status \(status). Check tailnet SSH ACLs and that journal-daemon is installed on the destination.")
+        throw BellError("SSH to \(user)@\(device) exited with status \(status). Check Tailscale connectivity, the SSH key and known-host entry, and that journal-daemon is installed on the destination.")
     }
-    print("Requested \(sound) on \(device).")
+    print("Requested \(sound) on \(user)@\(device).")
+}
+
+private func parseBellSendOptions(_ arguments: [String]) throws -> (device: String, user: String, sound: String) {
+    var device: String?
+    var user: String?
+    var sound: String?
+    var index = 2
+    while index < arguments.count {
+        guard index + 1 < arguments.count else {
+            throw BellError("Missing value for '\(arguments[index])'.")
+        }
+        let option = arguments[index]
+        let value = arguments[index + 1]
+        switch option {
+        case "--device" where device == nil:
+            device = value
+        case "--user" where user == nil:
+            user = value
+        case "--sound" where sound == nil:
+            sound = value
+        default:
+            throw BellError("Invalid or repeated bell send option '\(option)'.")
+        }
+        index += 2
+    }
+    guard let device else {
+        throw BellError("Bell send requires --device TAILNET_DEVICE.")
+    }
+    return (
+        device: try validatedTailnetDevice(device),
+        user: try validatedSSHUser(user ?? NSUserName()),
+        sound: try selectedBellSound(sound)
+    )
 }
 
 private func handleBell(_ arguments: [String]) throws {
@@ -141,13 +167,10 @@ private func handleBell(_ arguments: [String]) throws {
     } else if arguments.count == 4,
               Array(arguments[0...2]) == ["bell", "ring", "--sound"] {
         try ringBell(sound: selectedBellSound(arguments[3]))
-    } else if arguments.count == 4,
-              Array(arguments[0...2]) == ["bell", "send", "--device"] {
-        try sendBell(device: validatedTailnetDevice(arguments[3]), sound: selectedBellSound(nil))
-    } else if arguments.count == 6,
-              Array(arguments[0...2]) == ["bell", "send", "--device"],
-              arguments[4] == "--sound" {
-        try sendBell(device: validatedTailnetDevice(arguments[3]), sound: selectedBellSound(arguments[5]))
+    } else if arguments.count >= 4,
+              Array(arguments[0...1]) == ["bell", "send"] {
+        let options = try parseBellSendOptions(arguments)
+        try sendBell(device: options.device, user: options.user, sound: options.sound)
     } else {
         throw BellError("Invalid bell command. Run 'journal-daemon' for usage.")
     }
@@ -161,7 +184,7 @@ case ["version"]:
 case ["doctor"]:
     print("journal-daemon \(version)")
     print("Bootstrap installation is healthy.")
-    print("Bell sound bridging is available through Tailscale SSH.")
+    print("Bell sound bridging is available through SSH over Tailscale.")
     print("Device ingestion and upload support are not implemented in this build.")
 case let configurationArguments where configurationArguments.count == 4 &&
     Array(configurationArguments[0...2]) == ["config", "validate", "--config"]:

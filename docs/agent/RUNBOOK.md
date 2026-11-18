@@ -34,17 +34,17 @@ The formula runs `swift build --configuration release` during installation. It h
 
 ## Tailscale bell bridge
 
-Install `journal-daemon` and Tailscale on each destination Mac. Tailscale SSH must be enabled and its ACLs must permit the caller to execute `journal-daemon bell ring` on the destination.
+Install `journal-daemon` and Tailscale on each destination Mac. The caller needs a normal SSH key authorized on the destination and a trusted SSH host key. Tailscale provides the private network and MagicDNS destination.
 
 ```bash
 # On the destination Mac, verify local audio.
 journal-daemon bell ring --sound Glass
 
 # From an authorized Tailscale machine, request a bell on air15.
-journal-daemon bell send --device air15 --sound Glass
+journal-daemon bell send --device air15 --user carlos --sound Glass
 ```
 
-The implementation invokes `tailscale ssh air15 journal-daemon bell ring --sound Glass`. It does not open a TCP listener, accept arbitrary shell arguments, or store a shared token. Validate the exact Tailscale ACL and audible output manually on the target Macs before relying on it for agent completion notifications.
+The implementation invokes `/usr/bin/ssh -o BatchMode=yes carlos@air15 journal-daemon bell ring --sound Glass`. It does not open a TCP listener, accept arbitrary shell arguments, or store a shared token. Validate Tailscale connectivity, host-key verification, SSH authorization, and audible output manually on the target Macs before relying on it for agent completion notifications.
 
 ## Installation page
 
