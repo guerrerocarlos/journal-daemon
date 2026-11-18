@@ -13,6 +13,7 @@ Last updated: 2026-11-18
 - `journal-daemon bell ring` plays an allowlisted local macOS system sound. `journal-daemon bell send --device NAME` reaches another enrolled Mac through strict-host-checked SSH over Tailscale MagicDNS.
 - macOS acceptance on `air15` passed on 2026-11-18: Swift tests, source-only Homebrew install at `HEAD-b89edf5`, `brew test`, sound enumeration, and audible local `Glass` playback. A successful remote-send acceptance remains pending an authorized SSH key on a separate caller machine; a self-call on `air15` correctly failed because it has no credential authorized for `carlos@air15`.
 - Ingestion acceptance on `air15` passed on 2026-11-18: a synthetic stable WAV was atomically spooled once, persisted as `pending` in SQLite across a second scan, and the source-built `HEAD-d6e1b08` formula passed `brew test`. The Homebrew LaunchAgent was started and restarted successfully. Real DJI and live upload acceptance remain pending.
+- The installed `air15` formula was refreshed to `HEAD-93c49a6` and its LaunchAgent was started after the no-echo Keychain token prompt update.
 - Proposed implementation is a native Swift executable installed from source by Homebrew and run as a per-user LaunchAgent through `brew services`.
 - Proposed configuration is strict versioned JSON at `~/.config/journal-daemon/config.json`; secrets belong in macOS Keychain.
 - Source recordings remain unchanged. The MVP does not delete files from DJI devices.

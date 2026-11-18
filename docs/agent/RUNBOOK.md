@@ -62,6 +62,8 @@ On 2026-11-18, `air15` passed `swift test`, `brew install --HEAD --build-from-so
 
 On 2026-11-18, `air15` compiled the runtime with `swift test`. A synthetic stable WAV under a temporary mounted-root fixture was spooled exactly once and reported `pending=1` after a second scan, proving durable SQLite deduplication. The current source-only formula installed as `HEAD-d6e1b08`; `brew test journal-daemon`, `brew services start journal-daemon`, and `brew services restart journal-daemon` succeeded. The configured destination is still the non-routable example endpoint, so no live media upload has been attempted.
 
+The installed `air15` formula was subsequently refreshed to `HEAD-93c49a6` and its LaunchAgent was started after the no-echo Keychain token-entry update.
+
 ## Installation page
 
 `docs/index.html` is the repository-owned installation page. GitHub returned `422` when enabling Pages because the current plan does not support Pages for this private repository. Do not add a Pages deployment workflow until the repository is made public with approval or the account supports private-repository Pages.
