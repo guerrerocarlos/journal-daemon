@@ -66,7 +66,11 @@ public final class StateStore {
     }
     public func pending() throws -> [[String: String]] { try query("SELECT digest,source_id,original_path,spool_path,bytes,attempts FROM files WHERE status='pending' AND next_attempt <= strftime('%s','now') ORDER BY created_at LIMIT 20") }
     public func acknowledge(_ digest: String, importID: String?) throws { try execute("UPDATE files SET status='acknowledged', import_id=\(sql(importID ?? "")), acknowledged_at=strftime('%s','now'), last_error=NULL WHERE digest=\(sql(digest));") }
-    public func fail(_ digest: String, error: String) throws { try execute("UPDATE files SET attempts=attempts+1, next_attempt=strftime('%s','now') + MIN(3600, (1 << MIN(10,attempts+1)) * 5), last_error=\(sql(String(error.prefix(500))) WHERE digest=\(sql(digest));") }
+    public func fail(_ digest: String, error: String) throws {
+        let safeError = sql(String(error.prefix(500)))
+        let safeDigest = sql(digest)
+        try execute("UPDATE files SET attempts=attempts+1, next_attempt=strftime('%s','now') + MIN(3600, (1 << MIN(10,attempts+1)) * 5), last_error=\(safeError) WHERE digest=\(safeDigest);")
+    }
     public func retryAll() throws { try execute("UPDATE files SET next_attempt=0, status='pending' WHERE status != 'acknowledged';") }
     public func summary() throws -> [String: Int] { var result: [String: Int] = [:]; for row in try query("SELECT status, COUNT(*) AS count FROM files GROUP BY status") { result[row["status"] ?? "unknown"] = Int(row["count"] ?? "0") ?? 0 }; return result }
     private func sql(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "''") + "'" }
