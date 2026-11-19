@@ -80,6 +80,18 @@ public final class StateStore {
 public final class Ingestor {
     private let config: Configuration; private let store: StateStore; private let spool: URL
     public init(config: Configuration) throws { self.config = config; spool = config.expandedSpoolDirectory(); store = try StateStore(directory: spool) }
+    public struct ConnectedSource: Equatable { public let id: String; public let volumeName: String }
+    public func connectedSources() -> [ConnectedSource] {
+        let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: [.volumeNameKey, .volumeUUIDStringKey, .volumeIsRemovableKey], options: [.skipHiddenVolumes]) ?? []
+        var connected: [ConnectedSource] = []
+        for volume in volumes {
+            let volumeName = (try? volume.resourceValues(forKeys: [.volumeNameKey]).volumeName) ?? volume.lastPathComponent
+            for source in config.sources where matches(volume: volume, source: source) {
+                connected.append(ConnectedSource(id: source.id, volumeName: volumeName))
+            }
+        }
+        return connected
+    }
     public func scan(dryRun: Bool) throws -> Int {
         let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: [.volumeNameKey, .volumeUUIDStringKey, .volumeIsRemovableKey], options: [.skipHiddenVolumes]) ?? []
         var found = 0

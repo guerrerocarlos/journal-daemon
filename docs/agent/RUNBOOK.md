@@ -10,6 +10,8 @@ python3 -m json.tool config/config.example.json >/dev/null
 
 The executable service scans mounted volumes every 15 seconds. It only uploads after a file has been atomically spooled and recorded in local SQLite state.
 
+When a configured matching removable volume is mounted, the running per-user service shows a menu-bar drive icon. Open it to see the matching source and select **Scan now**. The icon disappears after all configured matching volumes are unmounted.
+
 ## Bootstrap developer checks
 
 ```bash
