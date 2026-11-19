@@ -6,7 +6,7 @@ The proposed application is installed through Homebrew and compiled from source 
 
 ## Current status
 
-This repository contains a source-built macOS daemon, its Homebrew formula, configuration example, and an installation page. It scans matching mounted volumes, atomically spools stable recordings, records durable state in SQLite, retries idempotent uploads, and runs as a per-user Homebrew service. While a configured matching USB volume is connected, the service shows a menu-bar drive icon with the source and a manual scan action. Hardware and live API acceptance remain separate.
+This repository contains a source-built macOS daemon, its Homebrew formula, configuration example, and an installation page. It scans matching mounted volumes, atomically spools stable recordings, records durable state in SQLite, retries idempotent uploads, and runs as a per-user Homebrew service. While a configured matching USB volume is connected, the service shows a menu-bar drive icon with the source and a manual scan action. During an API upload, it remains visible with an upload icon, filename, and byte progress. Hardware and live API acceptance remain separate.
 
 ## Install from source
 

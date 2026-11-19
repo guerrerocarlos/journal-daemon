@@ -26,7 +26,7 @@
 - Copy eligible stable files into the local spool before any network operation, compute SHA-256 while copying, and record the copy in SQLite before upload.
 - Use Keychain for the destination bearer token, HTTPS-only destination URLs, an idempotency key derived from SHA-256, and bounded retry backoff in SQLite.
 - Keep source-device files immutable and reject configuration that requests source deletion.
-- Run the per-user service as an accessory app so it can show a menu-bar indicator only while a configured matching USB volume is connected. The indicator is informational and never alters source media.
+- Run the per-user service as an accessory app so it can show a menu-bar indicator only while a configured matching USB volume is connected. During a network upload it remains visible with active filename and byte-level URLSession progress. The indicator is informational and never alters source media.
 
 ## 2026-11-18: Tailscale bell bridge
 

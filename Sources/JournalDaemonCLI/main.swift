@@ -10,33 +10,60 @@ func usage() { print("Usage: journal-daemon <version|doctor|run|status|scan|retr
 func configPath(_ args: [String]) -> String { if let i = args.firstIndex(of: "--config"), args.indices.contains(i + 1) { return args[i + 1] }; return "~/.config/journal-daemon/config.json" }
 func config(_ args: [String]) throws -> Configuration { try Configuration.load(path: configPath(args)) }
 final class MenuBarStatus: NSObject {
-    private let ingestor: Ingestor
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    init(ingestor: Ingestor) { self.ingestor = ingestor; super.init(); item.isVisible = false; item.menu = NSMenu() }
-    func refresh() {
-        let connected = ingestor.connectedSources()
-        item.isVisible = !connected.isEmpty
-        guard !connected.isEmpty else { return }
+    private let onScanNow: () -> Void
+    private var connected: [Ingestor.ConnectedSource] = []
+    private var upload: Ingestor.UploadProgress?
+    init(onScanNow: @escaping () -> Void) { self.onScanNow = onScanNow; super.init(); item.isVisible = false; item.menu = NSMenu() }
+    func setConnected(_ connected: [Ingestor.ConnectedSource]) { self.connected = connected; render() }
+    func setUpload(_ upload: Ingestor.UploadProgress?) { self.upload = upload; render() }
+    private func render() {
+        item.isVisible = !connected.isEmpty || upload != nil
+        guard item.isVisible else { return }
         let names = connected.map { "\($0.volumeName) (\($0.id))" }
-        item.button?.image = NSImage(systemSymbolName: "externaldrive.connected.to.line.below", accessibilityDescription: "Journal Daemon device connected")
-        item.button?.toolTip = "Journal Daemon: \(names.joined(separator: ", ")) connected"
         let menu = NSMenu()
-        let status = NSMenuItem(title: "Connected: \(names.joined(separator: ", "))", action: nil, keyEquivalent: "")
-        status.isEnabled = false
-        menu.addItem(status)
+        if let upload {
+            let percentage = upload.totalBytes > 0 ? Int((Double(upload.completedBytes) / Double(upload.totalBytes) * 100).rounded()) : 0
+            item.button?.image = NSImage(systemSymbolName: "arrow.up.circle.fill", accessibilityDescription: "Journal Daemon uploading")
+            item.button?.title = " \(percentage)%"
+            item.button?.toolTip = "Journal Daemon: uploading \(upload.filename), \(percentage)%"
+            let status = NSMenuItem(title: "Uploading \(upload.filename): \(formatBytes(upload.completedBytes)) of \(formatBytes(upload.totalBytes)) (\(percentage)%)", action: nil, keyEquivalent: "")
+            status.isEnabled = false
+            menu.addItem(status)
+        } else {
+            item.button?.image = NSImage(systemSymbolName: "externaldrive.connected.to.line.below", accessibilityDescription: "Journal Daemon device connected")
+            item.button?.title = ""
+            item.button?.toolTip = "Journal Daemon: \(names.joined(separator: ", ")) connected"
+        }
+        if !names.isEmpty {
+            let status = NSMenuItem(title: "Connected: \(names.joined(separator: ", "))", action: nil, keyEquivalent: "")
+            status.isEnabled = false
+            menu.addItem(status)
+        }
         menu.addItem(.separator())
         let rescan = NSMenuItem(title: "Scan now", action: #selector(scanNow), keyEquivalent: "r")
         rescan.target = self
         menu.addItem(rescan)
         item.menu = menu
     }
-    @objc private func scanNow() { _ = try? ingestor.scan(dryRun: false); _ = try? ingestor.uploadPending(); refresh() }
+    @objc private func scanNow() { onScanNow() }
 }
 func run(_ configuration: Configuration) throws {
     let ingestor = try Ingestor(config: configuration)
     NSApplication.shared.setActivationPolicy(.accessory)
-    let menuBar = MenuBarStatus(ingestor: ingestor)
-    func tick() { _ = try? ingestor.scan(dryRun: false); _ = try? ingestor.uploadPending(); menuBar.refresh() }
+    let worker = DispatchQueue(label: "com.guerrerocarlos.journal-daemon.ingestion")
+    var menuBar: MenuBarStatus!
+    func tick() {
+        worker.async {
+            let connected = ingestor.connectedSources()
+            DispatchQueue.main.async { menuBar.setConnected(connected) }
+            _ = try? ingestor.scan(dryRun: false)
+            _ = try? ingestor.uploadPending { progress in DispatchQueue.main.async { menuBar.setUpload(progress) } }
+            let refreshed = ingestor.connectedSources()
+            DispatchQueue.main.async { menuBar.setConnected(refreshed) }
+        }
+    }
+    menuBar = MenuBarStatus(onScanNow: tick)
     tick()
     Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in tick() }
     signal(SIGTERM, SIG_IGN)
@@ -45,6 +72,7 @@ func run(_ configuration: Configuration) throws {
     stop.resume()
     RunLoop.main.run()
 }
+func formatBytes(_ value: Int64) -> String { ByteCountFormatter.string(fromByteCount: value, countStyle: .file) }
 func ring(_ sound: String) throws { guard sounds.contains(sound) else { throw DaemonError.message("Unknown sound \(sound).") }; let path = "/System/Library/Sounds/\(sound).aiff"; guard FileManager.default.isReadableFile(atPath: path) else { throw DaemonError.message("Sound unavailable: \(path)") }; let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/afplay"); process.arguments = [path]; try process.run(); process.waitUntilExit(); guard process.terminationStatus == 0 else { throw DaemonError.message("afplay failed.") }; print("Rang \(sound).") }
 func sendBell(_ args: [String]) throws { guard let deviceIndex = args.firstIndex(of: "--device"), args.indices.contains(deviceIndex + 1) else { throw DaemonError.message("bell send requires --device NAME.") }; let user = args.firstIndex(of: "--user").flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil } ?? NSUserName(); let sound = args.firstIndex(of: "--sound").flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil } ?? "Glass"; guard args[deviceIndex + 1].range(of: "^[A-Za-z0-9._-]+$", options: .regularExpression) != nil, user.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil else { throw DaemonError.message("Invalid bell destination.") }; let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh"); process.arguments = ["-o", "BatchMode=yes", "\(user)@\(args[deviceIndex + 1])", "journal-daemon", "bell", "ring", "--sound", sound]; try process.run(); process.waitUntilExit(); guard process.terminationStatus == 0 else { throw DaemonError.message("Remote bell SSH request failed.") } }
 func setToken(_ configuration: Configuration) throws {

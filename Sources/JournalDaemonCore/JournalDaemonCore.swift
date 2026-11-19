@@ -118,7 +118,24 @@ public final class Ingestor {
         var hash = SHA256(); var bytes: Int64 = 0; while true { let data = try input.read(upToCount: 1_048_576) ?? Data(); if data.isEmpty { break }; hash.update(data: data); try output.write(contentsOf: data); bytes += Int64(data.count) }; try output.synchronize(); let digest = hash.finalize().map { String(format: "%02x", $0) }.joined(); if try store.hasDigest(digest) { try? FileManager.default.removeItem(at: temporary); return false }
         let destination = spool.appendingPathComponent(digest + "-" + file.lastPathComponent); try FileManager.default.moveItem(at: temporary, to: destination); try store.insert(digest: digest, source: sourceID, original: original, spool: destination.path, bytes: bytes); return true
     }
-    public func uploadPending() throws -> Int { let token = try Keychain.value(service: config.destination.auth.service, account: config.destination.auth.account); var uploaded = 0; for record in try store.pending() { do { let id = try Uploader.upload(record: record, config: config, token: token); try store.acknowledge(record["digest"]!, importID: id); if !config.behavior.keepSpoolAfterUpload { try? FileManager.default.removeItem(atPath: record["spool_path"]!) }; uploaded += 1 } catch { try store.fail(record["digest"]!, error: error.localizedDescription) } }; return uploaded }
+    public struct UploadProgress { public let filename: String; public let completedBytes: Int64; public let totalBytes: Int64 }
+    public func uploadPending(progress: ((UploadProgress?) -> Void)? = nil) throws {
+        let token = try Keychain.value(service: config.destination.auth.service, account: config.destination.auth.account)
+        for record in try store.pending() {
+            let filename = URL(fileURLWithPath: record["spool_path"] ?? "recording").lastPathComponent
+            let totalBytes = Int64(record["bytes"] ?? "0") ?? 0
+            progress?(UploadProgress(filename: filename, completedBytes: 0, totalBytes: totalBytes))
+            do {
+                let id = try Uploader.upload(record: record, config: config, token: token) { sent, expected in
+                    let total = max(totalBytes, expected)
+                    progress?(UploadProgress(filename: filename, completedBytes: min(sent, total), totalBytes: total))
+                }
+                try store.acknowledge(record["digest"]!, importID: id)
+                if !config.behavior.keepSpoolAfterUpload { try? FileManager.default.removeItem(atPath: record["spool_path"]!) }
+            } catch { try store.fail(record["digest"]!, error: error.localizedDescription) }
+            progress?(nil)
+        }
+    }
     public func status() throws -> [String: Int] { try store.summary() }
     public func retryAll() throws { try store.retryAll() }
 }
@@ -129,9 +146,15 @@ public enum Keychain {
     public static func set(_ value: String, service: String, account: String) throws { let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]; let attributes: [CFString: Any] = [kSecValueData: Data(value.utf8)]; let update = SecItemUpdate(query as CFDictionary, attributes as CFDictionary); if update == errSecItemNotFound { var add = query; add[kSecValueData] = Data(value.utf8); guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { throw DaemonError.message("Could not save Keychain token.") } } else if update != errSecSuccess { throw DaemonError.message("Could not update Keychain token.") } }
 }
 
+private final class UploadDelegate: NSObject, URLSessionTaskDelegate {
+    let progress: (Int64, Int64) -> Void
+    init(progress: @escaping (Int64, Int64) -> Void) { self.progress = progress }
+    func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) { progress(totalBytesSent, totalBytesExpectedToSend) }
+}
+
 enum Uploader {
-    static func upload(record: [String: String], config: Configuration, token: String) throws -> String? {
+    static func upload(record: [String: String], config: Configuration, token: String, progress: @escaping (Int64, Int64) -> Void) throws -> String? {
         guard let url = URL(string: config.destination.importPath, relativeTo: URL(string: config.destination.baseURL)), let file = record["spool_path"], let digest = record["digest"] else { throw DaemonError.message("Invalid upload configuration.") }; let boundary = "JournalDaemon-\(UUID().uuidString)"; let body = URL(fileURLWithPath: file + ".upload"); defer { try? FileManager.default.removeItem(at: body) }; var data = Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n".utf8); let metadata: [String: Any] = ["version": 1, "sourceId": record["source_id"] ?? "", "originalPath": record["original_path"] ?? "", "sha256": digest, "byteCount": Int64(record["bytes"] ?? "0") ?? 0, "destination": ["chatId": config.destination.route.chatId, "messageThreadId": config.destination.route.messageThreadId]]; data.append(try JSONSerialization.data(withJSONObject: metadata)); data.append(Data("\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(URL(fileURLWithPath: file).lastPathComponent)\"\r\nContent-Type: application/octet-stream\r\n\r\n".utf8)); try data.write(to: body); let output = try FileHandle(forWritingTo: body); let input = try FileHandle(forReadingFrom: URL(fileURLWithPath: file)); while let chunk = try input.read(upToCount: 1_048_576), !chunk.isEmpty { try output.write(contentsOf: chunk) }; try output.write(contentsOf: Data("\r\n--\(boundary)--\r\n".utf8)); try input.close(); try output.close()
-        var request = URLRequest(url: url); request.httpMethod = "POST"; request.timeoutInterval = TimeInterval(config.destination.requestTimeoutSeconds); request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization"); request.setValue("sha256:\(digest)", forHTTPHeaderField: "Idempotency-Key"); request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type"); let semaphore = DispatchSemaphore(value: 0); var responseData = Data(); var response: URLResponse?; var failure: Error?; URLSession.shared.uploadTask(with: request, fromFile: body) { data, result, error in responseData = data ?? Data(); response = result; failure = error; semaphore.signal() }.resume(); semaphore.wait(); if let failure { throw failure }; let code = (response as? HTTPURLResponse)?.statusCode ?? 0; guard (200...201).contains(code) || code == 409 else { throw DaemonError.message("Upload returned HTTP \(code).") }; let object = (try? JSONSerialization.jsonObject(with: responseData)) as? [String: Any]; guard object?["sha256"] as? String == digest else { throw DaemonError.message("Upload response digest mismatch.") }; return object?["importId"] as? String
+        var request = URLRequest(url: url); request.httpMethod = "POST"; request.timeoutInterval = TimeInterval(config.destination.requestTimeoutSeconds); request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization"); request.setValue("sha256:\(digest)", forHTTPHeaderField: "Idempotency-Key"); request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type"); let semaphore = DispatchSemaphore(value: 0); var responseData = Data(); var response: URLResponse?; var failure: Error?; let delegate = UploadDelegate(progress: progress); let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil); session.uploadTask(with: request, fromFile: body) { data, result, error in responseData = data ?? Data(); response = result; failure = error; semaphore.signal() }.resume(); semaphore.wait(); session.finishTasksAndInvalidate(); if let failure { throw failure }; let code = (response as? HTTPURLResponse)?.statusCode ?? 0; guard (200...201).contains(code) || code == 409 else { throw DaemonError.message("Upload returned HTTP \(code).") }; let object = (try? JSONSerialization.jsonObject(with: responseData)) as? [String: Any]; guard object?["sha256"] as? String == digest else { throw DaemonError.message("Upload response digest mismatch.") }; return object?["importId"] as? String
     }
 }
