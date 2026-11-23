@@ -13,7 +13,7 @@ This repository contains a source-built macOS daemon, its Homebrew formula, conf
 Visit the public installation page at [guerrerocarlos.github.io/journal-daemon](https://guerrerocarlos.github.io/journal-daemon/).
 
 ```bash
-brew tap guerrerocarlos/journal-daemon
+brew tap guerrerocarlos/journal-daemon https://github.com/guerrerocarlos/journal-daemon.git
 brew trust guerrerocarlos/journal-daemon
 brew install --HEAD --build-from-source journal-daemon
 ```

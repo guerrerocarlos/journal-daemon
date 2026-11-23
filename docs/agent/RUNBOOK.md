@@ -34,7 +34,7 @@ swift run journal-daemon scan --dry-run --config config/config.example.json
 ## Bootstrap Homebrew checks
 
 ```bash
-brew tap guerrerocarlos/journal-daemon
+brew tap guerrerocarlos/journal-daemon https://github.com/guerrerocarlos/journal-daemon.git
 brew trust guerrerocarlos/journal-daemon
 brew install --HEAD --build-from-source journal-daemon
 brew test journal-daemon
@@ -49,6 +49,8 @@ journal-daemon status --config ~/.config/journal-daemon/config.json
 ```
 
 The formula runs `swift build --configuration release` during installation. Before enabling uploads, set the private Tailscale bridge hostname plus a bound Telegram `chatId` and `messageThreadId`. No application token is required: the bridge must remain localhost-bound behind Tailscale Serve, with access limited by tailnet policy.
+
+On 2026-11-23, `pro13` passed `brew install --HEAD --build-from-source journal-daemon`, `brew test guerrerocarlos/journal-daemon/journal-daemon`, configuration validation, and per-user service startup. Its active route is the LIFE Journal chat `-1004361900873`, topic `5701`, with no `auth` field. The host's standalone `swift test` is currently unavailable because its Command Line Tools installation does not provide XCTest, although its release build completed successfully.
 
 ## Telegram bridge ingestion
 

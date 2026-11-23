@@ -17,7 +17,7 @@ DJI documents that its transmitters expose recorded audio for export when connec
 The intended operator flow is:
 
 ```bash
-brew tap guerrerocarlos/journal-daemon git@github.com:guerrerocarlos/journal-daemon.git
+brew tap guerrerocarlos/journal-daemon https://github.com/guerrerocarlos/journal-daemon.git
 brew install --build-from-source journal-daemon
 mkdir -p ~/.config/journal-daemon
 cp "$(brew --prefix journal-daemon)/share/journal-daemon/config.example.json" \
