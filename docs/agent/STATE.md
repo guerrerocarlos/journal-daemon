@@ -19,6 +19,7 @@ Last updated: 2026-11-23
 - The installed `air15` formula was refreshed to `HEAD-93c49a6` and its LaunchAgent was started. The pending update removes the obsolete application-token configuration.
 - On 2026-11-23, an SSH rollout attempt to `air15` timed out, so it remains pending the next reachable-window update to `HEAD-e10bd80`.
 - `air15` was subsequently source-upgraded to `HEAD-ae1da08` on 2026-11-23. Its local source matcher is `^NO NAME$`, with the `.journal-daemon` root marker still required, so the generic DJI volume will scan `DJI_Audio_*` folders after reconnection. The USB disconnected during the post-upgrade dry scan, so fresh device acceptance is pending reconnect.
+- Fresh USB acceptance then passed on `air15`: the `NO NAME` volume was detected and 29 recordings were atomically copied into the durable spool, totaling about 864 MiB, while the source media remained untouched. Delivery remains pending because `https://beelink.amarok-peacock.ts.net:443` was unreachable from `air15`.
 - Proposed implementation is a native Swift executable installed from source by Homebrew and run as a per-user LaunchAgent through `brew services`.
 - Configuration is strict versioned JSON at `~/.config/journal-daemon/config.json`; its receiver must be a private Tailscale HTTPS endpoint protected by Tailscale Serve and tailnet policy.
 - Source recordings remain unchanged. The MVP does not delete files from DJI devices.
