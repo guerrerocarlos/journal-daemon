@@ -4,7 +4,7 @@
     {
       "id": "dji-mic",
       "volume": {
-        "nameRegex": "^DJI.*",
+        "nameRegex": ".*",
         "volumeUUID": null,
         "requireRemovable": true
       },

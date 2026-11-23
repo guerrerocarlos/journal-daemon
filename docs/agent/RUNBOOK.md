@@ -18,6 +18,8 @@ mkdir /Volumes/YOUR_DRIVE/.journal-daemon
 
 Without that exact directory, the daemon ignores the volume, including its menu-bar connection status.
 
+The example configuration uses `nameRegex: ".*"` because DJI commonly stores its identity in folders such as `DJI_Audio_001` inside a generically named volume. The required marker and removable-media rule are the safety boundary. Narrow `nameRegex` only when a specific volume name is reliable.
+
 When a configured matching removable volume is mounted, the running per-user service shows a menu-bar drive icon. Open it to see the matching source and select **Scan now**. During API upload, the icon switches to an upload indicator and displays the active filename plus byte progress, remaining visible even if the source volume is later unmounted. The drive icon disappears after all matching volumes are unmounted and no upload is active.
 
 ## Bootstrap developer checks

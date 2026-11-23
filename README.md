@@ -43,7 +43,7 @@ The daemon ignores every volume unless its root contains a `.journal-daemon` dir
 mkdir /Volumes/YOUR_DRIVE/.journal-daemon
 ```
 
-The existing source rules still apply, including the configured volume name, removable-media requirement, and audio extensions. The marker prevents an unrelated matching USB volume from being scanned or showing the menu-bar indicator.
+The existing source rules still apply, including the configurable volume-name selector, removable-media requirement, and audio extensions. The checked-in default accepts any removable volume only after the marker is present, so DJI folder names such as `DJI_Audio_001` are discovered inside the opted-in drive rather than being mistaken for its volume name.
 
 ## Tailscale bell bridge
 

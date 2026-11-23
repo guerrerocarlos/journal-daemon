@@ -26,7 +26,7 @@
 - Copy eligible stable files into the local spool before any network operation, compute SHA-256 while copying, and record the copy in SQLite before upload.
 - Use HTTPS-only destination URLs, an idempotency key derived from SHA-256, and bounded retry backoff in SQLite.
 - Keep source-device files immutable and reject configuration that requests source deletion.
-- Require a `.journal-daemon` directory at each source volume root as an explicit physical-media opt-in. A matching volume without the marker is ignored.
+- Require a `.journal-daemon` directory at each source volume root as an explicit physical-media opt-in. A matching volume without the marker is ignored. The default volume matcher may accept any removable volume because the marker, rather than a potentially generic DJI volume label, is the safety boundary.
 - Run the per-user service as an accessory app so it can show a menu-bar indicator only while a configured matching USB volume is connected. During a network upload it remains visible with active filename and byte-level URLSession progress. The indicator is informational and never alters source media.
 
 ## 2026-11-18: Tailscale bell bridge
