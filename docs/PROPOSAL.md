@@ -320,6 +320,7 @@ The proposed release workflow updates the tag, immutable revision, formula URL m
 - `brew services stop journal-daemon` stops it without deleting state or configuration.
 - `brew upgrade journal-daemon` builds the new version from source.
 - The upgrade workflow restarts the service only after a successful install.
+- The running per-user service checks the approved public tap once every 24 hours. It source-builds and restarts only when the installed HEAD revision changes.
 - SQLite migrations are forward-only, transactional, and backed up before schema changes.
 - An older binary must refuse to open a newer unsupported state schema.
 - Uninstall leaves configuration, state, and unacknowledged spool files in place, and prints explicit cleanup commands.

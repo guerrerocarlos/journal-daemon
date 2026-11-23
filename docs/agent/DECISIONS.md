@@ -40,3 +40,8 @@
 - Deliver spool files to the existing Telegram bridge over Tailscale HTTPS, not directly to the Journal Git repository.
 - Use the private tailnet access policy and Tailscale Serve as the authorization boundary, plus SHA-256 idempotency and an explicit configured Telegram chat and forum-topic route in each daemon destination. Do not expose this endpoint through Funnel or a public proxy.
 - The bridge must reject unbound routes, then send the audio into the requested topic and feed the same bytes through the Journal archival pipeline.
+
+## 2026-11-23: Fleet update policy
+
+- Treat `air15` and `pro13` as the deployment fleet. Every daemon improvement should be installed and verified on both Macs when they are reachable, and any unavailable machine must be reported explicitly.
+- Have the running per-user daemon check its approved public Homebrew tap every 24 hours. When a new HEAD revision is available, source-build it and restart only after Homebrew completes the upgrade successfully.

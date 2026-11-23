@@ -9,6 +9,21 @@ let sounds = ["Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero", "Morse
 func usage() { print("Usage: journal-daemon <version|doctor|run|status|scan|retry|config validate|bell>") }
 func configPath(_ args: [String]) -> String { if let i = args.firstIndex(of: "--config"), args.indices.contains(i + 1) { return args[i + 1] }; return "~/.config/journal-daemon/config.json" }
 func config(_ args: [String]) throws -> Configuration { try Configuration.load(path: configPath(args)) }
+@discardableResult func brew(_ executable: String, _ arguments: [String], capture: Bool = true) -> (status: Int32, output: String)? {
+    let process = Process(); let pipe = capture ? Pipe() : nil; process.executableURL = URL(fileURLWithPath: executable); process.arguments = arguments; process.standardOutput = pipe; process.standardError = pipe
+    do { try process.run(); process.waitUntilExit() } catch { return nil }
+    return (process.terminationStatus, pipe.flatMap { String(data: $0.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) } ?? "")
+}
+func automaticUpdate() {
+    guard let executable = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"].first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else { return }
+    let formula = "guerrerocarlos/journal-daemon/journal-daemon"
+    let before = brew(executable, ["list", "--versions", formula])?.output
+    guard brew(executable, ["update"], capture: false)?.status == 0,
+          brew(executable, ["upgrade", "--fetch-HEAD", "--build-from-source", formula], capture: false)?.status == 0 else { return }
+    let after = brew(executable, ["list", "--versions", formula])?.output
+    guard before != after else { return }
+    _ = brew(executable, ["services", "restart", formula])
+}
 final class MenuBarStatus: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let onScanNow: () -> Void
@@ -66,6 +81,7 @@ func run(_ configuration: Configuration) throws {
     menuBar = MenuBarStatus(onScanNow: tick)
     tick()
     Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in tick() }
+    Timer.scheduledTimer(withTimeInterval: 86_400, repeats: true) { _ in worker.async { automaticUpdate() } }
     signal(SIGTERM, SIG_IGN)
     let stop = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
     stop.setEventHandler { exit(0) }

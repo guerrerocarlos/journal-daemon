@@ -52,6 +52,18 @@ The formula runs `swift build --configuration release` during installation. Befo
 
 On 2026-11-23, `pro13` passed `brew install --HEAD --build-from-source journal-daemon`, `brew test guerrerocarlos/journal-daemon/journal-daemon`, configuration validation, and per-user service startup. Its active route is the LIFE Journal chat `-1004361900873`, topic `5701`, with no `auth` field. The host's standalone `swift test` is currently unavailable because its Command Line Tools installation does not provide XCTest, although its release build completed successfully.
 
+## Fleet rollout and daily updates
+
+Every daemon change must be rolled out to both fleet Macs, `air15` and `pro13`, whenever they are reachable. Report an unreachable machine rather than treating it as updated. The per-user daemon performs a daily Homebrew update check after it has been running for 24 hours. If the approved public tap has a newer HEAD build, it builds from source and restarts its own per-user service after a successful upgrade. It leaves the service running unchanged when the installed revision is current.
+
+To force an immediate source refresh on a reachable Mac:
+
+```bash
+brew update
+brew upgrade --fetch-HEAD --build-from-source guerrerocarlos/journal-daemon/journal-daemon
+brew services restart guerrerocarlos/journal-daemon/journal-daemon
+```
+
 ## Telegram bridge ingestion
 
 The daemon uploads multipart audio to `https://<bridge-tailnet-name>/journal-daemon/v1/imports`. Its `destination.route` selects the Telegram group and forum topic. The LIFE Journal route is chat `-1004361900873`, topic `5701`. The bridge checks the exact route is currently bound and configured for Journal media, then posts the audio and archives it. The endpoint is Tailscale-only. Never use Funnel or a public proxy.

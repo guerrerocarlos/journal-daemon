@@ -33,6 +33,8 @@ brew services start journal-daemon
 
 Check the durable spool and service with `journal-daemon status --config ~/.config/journal-daemon/config.json` and `brew services list`. The checked-in endpoint is a placeholder, so replace `destination.baseURL` only with the approved private Tailscale HTTPS import API. The daemon sends no application bearer token: Tailscale Serve and tailnet access policy protect the receiver.
 
+While the per-user service is running, it checks the public source tap once every 24 hours. When Homebrew reports a newer `HEAD` build, it compiles that source and restarts the service. This applies the same daemon improvement to each enrolled Mac when it is online.
+
 ## USB opt-in marker
 
 The daemon ignores every volume unless its root contains a `.journal-daemon` directory. Create it on a drive you intend to ingest before connecting it:
