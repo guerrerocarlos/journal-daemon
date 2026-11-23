@@ -45,6 +45,8 @@ mkdir /Volumes/YOUR_DRIVE/.journal-daemon
 
 The existing source rules still apply, including the configurable volume-name selector, removable-media requirement, and audio extensions. The checked-in default accepts any removable volume only after the marker is present, so DJI folder names such as `DJI_Audio_001` are discovered inside the opted-in drive rather than being mistaken for its volume name.
 
+Files inside removable-drive trash folders are never ingested, even if their extension matches. This includes `.Trashes`, `.Trash`, `$RECYCLE.BIN`, `Trash`, `Trashed`, and `Deleted Items` directories.
+
 ## Tailscale bell bridge
 
 Any Mac with this command installed can play a built-in macOS sound locally:

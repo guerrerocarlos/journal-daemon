@@ -27,6 +27,7 @@
 - Use HTTPS-only destination URLs, an idempotency key derived from SHA-256, and bounded retry backoff in SQLite.
 - Keep source-device files immutable and reject configuration that requests source deletion.
 - Require a `.journal-daemon` directory at each source volume root as an explicit physical-media opt-in. A matching volume without the marker is ignored. The default volume matcher may accept any removable volume because the marker, rather than a potentially generic DJI volume label, is the safety boundary.
+- Treat all files below known removable-media trash directories as ineligible, independent of source extension or configured filename exclusion. Never copy, hash, spool, or upload them.
 - Run the per-user service as an accessory app so it can show a menu-bar indicator only while a configured matching USB volume is connected. During a network upload it remains visible with active filename and byte-level URLSession progress. The indicator is informational and never alters source media.
 
 ## 2026-11-18: Tailscale bell bridge

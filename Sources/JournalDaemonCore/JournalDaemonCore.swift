@@ -76,6 +76,7 @@ public final class StateStore {
 
 public final class Ingestor {
     private let config: Configuration; private let store: StateStore; private let spool: URL
+    private static let trashDirectoryNames: Set<String> = [".trashes", ".trash", "$recycle.bin", "trash", "trashed", "deleted items"]
     public init(config: Configuration) throws { self.config = config; spool = config.expandedSpoolDirectory(); store = try StateStore(directory: spool) }
     public struct ConnectedSource: Equatable { public let id: String; public let volumeName: String }
     public func connectedSources() -> [ConnectedSource] {
@@ -102,15 +103,18 @@ public final class Ingestor {
         if let uuid = source.volume.volumeUUID, values?.volumeUUIDString != uuid { return false }; if source.volume.requireRemovable, values?.volumeIsRemovable != true { return false }; return true
     }
     private func ingest(root: URL, volume: URL, source: Configuration.Source, dryRun: Bool) throws -> Int {
-        guard let iterator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey], options: [.skipsHiddenFiles]) else { return 0 }; var count = 0
+        guard let iterator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey], options: [.skipsHiddenFiles]) else { return 0 }; var count = 0
         while let file = iterator.nextObject() as? URL {
-            let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey]); guard values.isRegularFile == true, values.isSymbolicLink != true else { continue }
+            let values = try file.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey])
+            if Self.isTrashedPath(file) { if values.isDirectory == true { iterator.skipDescendants() }; continue }
+            guard values.isRegularFile == true, values.isSymbolicLink != true else { continue }
             let extensionAllowed = source.includeExtensions.contains(file.pathExtension.lowercased()); let excluded = source.excludeNameRegex.map { file.lastPathComponent.range(of: $0, options: .regularExpression) != nil } ?? false
             guard extensionAllowed, !excluded, Date().timeIntervalSince(values.contentModificationDate ?? Date()) >= Double(source.stableForSeconds) else { continue }
             let relative = file.path.replacingOccurrences(of: volume.path + "/", with: ""); if dryRun { print("Would spool \(relative)"); count += 1; continue }
             if try copy(file: file, sourceID: source.id, original: relative) { count += 1 }
         }; return count
     }
+    static func isTrashedPath(_ url: URL) -> Bool { url.pathComponents.contains { Self.trashDirectoryNames.contains($0.lowercased()) } }
     private func copy(file: URL, sourceID: String, original: String) throws -> Bool {
         let temporary = spool.appendingPathComponent(".copy-\(UUID().uuidString)"); FileManager.default.createFile(atPath: temporary.path, contents: nil); let input = try FileHandle(forReadingFrom: file); let output = try FileHandle(forWritingTo: temporary); defer { try? input.close(); try? output.close() }
         var hash = SHA256(); var bytes: Int64 = 0; while true { let data = try input.read(upToCount: 1_048_576) ?? Data(); if data.isEmpty { break }; hash.update(data: data); try output.write(contentsOf: data); bytes += Int64(data.count) }; try output.synchronize(); let digest = hash.finalize().map { String(format: "%02x", $0) }.joined(); if try store.hasDigest(digest) { try? FileManager.default.removeItem(at: temporary); return false }
