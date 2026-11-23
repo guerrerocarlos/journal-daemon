@@ -34,6 +34,16 @@ brew services start journal-daemon
 
 `auth set-token` uses a no-echo interactive prompt. Check the durable spool and service with `journal-daemon status --config ~/.config/journal-daemon/config.json` and `brew services list`. The checked-in endpoint is a placeholder, so replace `destination.baseURL` only with the approved HTTPS import API before storing a token.
 
+## USB opt-in marker
+
+The daemon ignores every volume unless its root contains a `.journal-daemon` directory. Create it on a drive you intend to ingest before connecting it:
+
+```bash
+mkdir /Volumes/YOUR_DRIVE/.journal-daemon
+```
+
+The existing source rules still apply, including the configured volume name, removable-media requirement, and audio extensions. The marker prevents an unrelated matching USB volume from being scanned or showing the menu-bar indicator.
+
 ## Tailscale bell bridge
 
 Any Mac with this command installed can play a built-in macOS sound locally:

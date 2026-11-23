@@ -51,7 +51,7 @@ journal-daemon doctor</code></pre>
           <li>Runs <code>swift build --configuration release</code> on your Mac.</li>
           <li>Installs the resulting <code>journal-daemon</code> binary and a non-secret configuration example.</li>
         </ul>
-        <p class="notice">The daemon polls matching mounted volumes, atomically spools stable recordings, preserves source files, and runs as a per-user LaunchAgent. A menu-bar drive icon appears while a configured USB source is connected, then shows the upload filename and byte progress while media is sent. A real upload needs your approved HTTPS API URL and Keychain token.</p>
+        <p class="notice">The daemon only accepts a configured USB source when its root contains a <code>.journal-daemon</code> folder. It atomically spools stable recordings, preserves source files, and runs as a per-user LaunchAgent. A menu-bar drive icon appears while an opted-in USB source is connected, then shows the upload filename and byte progress while media is sent. A real upload needs your approved HTTPS API URL and Keychain token.</p>
       </section>
 
       <section>

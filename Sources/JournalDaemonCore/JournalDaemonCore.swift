@@ -101,6 +101,7 @@ public final class Ingestor {
     private func matches(volume: URL, source: Configuration.Source) -> Bool {
         let values = try? volume.resourceValues(forKeys: [.volumeNameKey, .volumeUUIDStringKey, .volumeIsRemovableKey]); let name = values?.volumeName ?? ""
         guard name.range(of: source.volume.nameRegex, options: .regularExpression) != nil else { return false }
+        guard FileManager.default.fileExists(atPath: volume.appendingPathComponent(".journal-daemon", isDirectory: true).path) else { return false }
         if let uuid = source.volume.volumeUUID, values?.volumeUUIDString != uuid { return false }; if source.volume.requireRemovable, values?.volumeIsRemovable != true { return false }; return true
     }
     private func ingest(root: URL, volume: URL, source: Configuration.Source, dryRun: Bool) throws -> Int {
