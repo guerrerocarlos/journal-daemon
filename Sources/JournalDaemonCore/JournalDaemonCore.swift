@@ -1,7 +1,6 @@
 import Foundation
 import CryptoKit
 import SQLite3
-import Security
 
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
@@ -16,9 +15,8 @@ public enum DaemonError: LocalizedError {
 public struct Configuration: Codable {
     public struct Volume: Codable { public let nameRegex: String; public let volumeUUID: String?; public let requireRemovable: Bool }
     public struct Source: Codable { public let id: String; public let volume: Volume; public let roots: [String]; public let includeExtensions: [String]; public let excludeNameRegex: String?; public let stableForSeconds: Int }
-    public struct Auth: Codable { public let type: String; public let service: String; public let account: String }
     public struct Route: Codable { public let chatId: Int64; public let messageThreadId: Int64 }
-    public struct Destination: Codable { public let baseURL: String; public let importPath: String; public let route: Route; public let auth: Auth; public let requestTimeoutSeconds: Int }
+    public struct Destination: Codable { public let baseURL: String; public let importPath: String; public let route: Route; public let requestTimeoutSeconds: Int }
     public struct Spool: Codable { public let directory: String; public let maximumBytes: Int64 }
     public struct Behavior: Codable { public let scanMountedVolumesAtStartup: Bool; public let uploadConcurrency: Int; public let deleteSourceAfterUpload: Bool; public let keepSpoolAfterUpload: Bool }
     public struct Logging: Codable { public let level: String; public let directory: String }
@@ -31,7 +29,6 @@ public struct Configuration: Codable {
         guard config.version == 1, !config.sources.isEmpty else { throw DaemonError.message("Configuration requires version 1 and at least one source.") }
         guard config.behavior.deleteSourceAfterUpload == false else { throw DaemonError.message("deleteSourceAfterUpload must remain false.") }
         guard URL(string: config.destination.baseURL)?.scheme == "https" else { throw DaemonError.message("destination.baseURL must use HTTPS.") }
-        guard config.destination.auth.type == "keychain" else { throw DaemonError.message("Only Keychain authentication is supported.") }
         for source in config.sources {
             guard source.id.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil,
                   source.stableForSeconds >= 0,
@@ -121,13 +118,12 @@ public final class Ingestor {
     }
     public struct UploadProgress { public let filename: String; public let completedBytes: Int64; public let totalBytes: Int64 }
     public func uploadPending(progress: ((UploadProgress?) -> Void)? = nil) throws {
-        let token = try Keychain.value(service: config.destination.auth.service, account: config.destination.auth.account)
         for record in try store.pending() {
             let filename = URL(fileURLWithPath: record["spool_path"] ?? "recording").lastPathComponent
             let totalBytes = Int64(record["bytes"] ?? "0") ?? 0
             progress?(UploadProgress(filename: filename, completedBytes: 0, totalBytes: totalBytes))
             do {
-                let id = try Uploader.upload(record: record, config: config, token: token) { sent, expected in
+                let id = try Uploader.upload(record: record, config: config) { sent, expected in
                     let total = max(totalBytes, expected)
                     progress?(UploadProgress(filename: filename, completedBytes: min(sent, total), totalBytes: total))
                 }
@@ -141,12 +137,6 @@ public final class Ingestor {
     public func retryAll() throws { try store.retryAll() }
 }
 
-public enum Keychain {
-    public static func token(service: String, account: String) throws { _ = try value(service: service, account: account) }
-    public static func value(service: String, account: String) throws -> String { var item: CFTypeRef?; let status = SecItemCopyMatching([kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account, kSecReturnData: true] as CFDictionary, &item); guard status == errSecSuccess, let data = item as? Data, let value = String(data: data, encoding: .utf8) else { throw DaemonError.message("No Keychain token found. Run journal-daemon auth set-token.") }; return value }
-    public static func set(_ value: String, service: String, account: String) throws { let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]; let attributes: [CFString: Any] = [kSecValueData: Data(value.utf8)]; let update = SecItemUpdate(query as CFDictionary, attributes as CFDictionary); if update == errSecItemNotFound { var add = query; add[kSecValueData] = Data(value.utf8); guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { throw DaemonError.message("Could not save Keychain token.") } } else if update != errSecSuccess { throw DaemonError.message("Could not update Keychain token.") } }
-}
-
 private final class UploadDelegate: NSObject, URLSessionTaskDelegate {
     let progress: (Int64, Int64) -> Void
     init(progress: @escaping (Int64, Int64) -> Void) { self.progress = progress }
@@ -154,8 +144,8 @@ private final class UploadDelegate: NSObject, URLSessionTaskDelegate {
 }
 
 enum Uploader {
-    static func upload(record: [String: String], config: Configuration, token: String, progress: @escaping (Int64, Int64) -> Void) throws -> String? {
+    static func upload(record: [String: String], config: Configuration, progress: @escaping (Int64, Int64) -> Void) throws -> String? {
         guard let url = URL(string: config.destination.importPath, relativeTo: URL(string: config.destination.baseURL)), let file = record["spool_path"], let digest = record["digest"] else { throw DaemonError.message("Invalid upload configuration.") }; let boundary = "JournalDaemon-\(UUID().uuidString)"; let body = URL(fileURLWithPath: file + ".upload"); defer { try? FileManager.default.removeItem(at: body) }; var data = Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n".utf8); let metadata: [String: Any] = ["version": 1, "sourceId": record["source_id"] ?? "", "originalPath": record["original_path"] ?? "", "sha256": digest, "byteCount": Int64(record["bytes"] ?? "0") ?? 0, "destination": ["chatId": config.destination.route.chatId, "messageThreadId": config.destination.route.messageThreadId]]; data.append(try JSONSerialization.data(withJSONObject: metadata)); data.append(Data("\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(URL(fileURLWithPath: file).lastPathComponent)\"\r\nContent-Type: application/octet-stream\r\n\r\n".utf8)); try data.write(to: body); let output = try FileHandle(forWritingTo: body); let input = try FileHandle(forReadingFrom: URL(fileURLWithPath: file)); while let chunk = try input.read(upToCount: 1_048_576), !chunk.isEmpty { try output.write(contentsOf: chunk) }; try output.write(contentsOf: Data("\r\n--\(boundary)--\r\n".utf8)); try input.close(); try output.close()
-        var request = URLRequest(url: url); request.httpMethod = "POST"; request.timeoutInterval = TimeInterval(config.destination.requestTimeoutSeconds); request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization"); request.setValue("sha256:\(digest)", forHTTPHeaderField: "Idempotency-Key"); request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type"); let semaphore = DispatchSemaphore(value: 0); var responseData = Data(); var response: URLResponse?; var failure: Error?; let delegate = UploadDelegate(progress: progress); let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil); session.uploadTask(with: request, fromFile: body) { data, result, error in responseData = data ?? Data(); response = result; failure = error; semaphore.signal() }.resume(); semaphore.wait(); session.finishTasksAndInvalidate(); if let failure { throw failure }; let code = (response as? HTTPURLResponse)?.statusCode ?? 0; guard (200...201).contains(code) || code == 409 else { throw DaemonError.message("Upload returned HTTP \(code).") }; let object = (try? JSONSerialization.jsonObject(with: responseData)) as? [String: Any]; guard object?["sha256"] as? String == digest else { throw DaemonError.message("Upload response digest mismatch.") }; return object?["importId"] as? String
+        var request = URLRequest(url: url); request.httpMethod = "POST"; request.timeoutInterval = TimeInterval(config.destination.requestTimeoutSeconds); request.setValue("sha256:\(digest)", forHTTPHeaderField: "Idempotency-Key"); request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type"); let semaphore = DispatchSemaphore(value: 0); var responseData = Data(); var response: URLResponse?; var failure: Error?; let delegate = UploadDelegate(progress: progress); let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil); session.uploadTask(with: request, fromFile: body) { data, result, error in responseData = data ?? Data(); response = result; failure = error; semaphore.signal() }.resume(); semaphore.wait(); session.finishTasksAndInvalidate(); if let failure { throw failure }; let code = (response as? HTTPURLResponse)?.statusCode ?? 0; guard (200...201).contains(code) || code == 409 else { throw DaemonError.message("Upload returned HTTP \(code).") }; let object = (try? JSONSerialization.jsonObject(with: responseData)) as? [String: Any]; guard object?["sha256"] as? String == digest else { throw DaemonError.message("Upload response digest mismatch.") }; return object?["importId"] as? String
     }
 }

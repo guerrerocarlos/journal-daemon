@@ -27,11 +27,6 @@
       "chatId": 0,
       "messageThreadId": 0
     },
-    "auth": {
-      "type": "keychain",
-      "service": "com.guerrerocarlos.journal-daemon",
-      "account": "default"
-    },
     "requestTimeoutSeconds": 120
   },
   "spool": {

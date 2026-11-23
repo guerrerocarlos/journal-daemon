@@ -22,7 +22,6 @@ brew install --build-from-source journal-daemon
 mkdir -p ~/.config/journal-daemon
 cp "$(brew --prefix journal-daemon)/share/journal-daemon/config.example.json" \
   ~/.config/journal-daemon/config.json
-journal-daemon auth set-token
 journal-daemon config validate
 brew services start journal-daemon
 journal-daemon status
@@ -51,7 +50,7 @@ After that, connecting a matching DJI device causes the agent to:
 - Stable-file detection before copying.
 - Atomic local spool and crash-safe SQLite state.
 - SHA-256 content identity and server idempotency.
-- HTTPS upload with a Keychain-backed bearer token.
+- HTTPS upload to a private receiver protected by Tailscale Serve and tailnet policy.
 - Retry with bounded concurrency and exponential backoff.
 - Structured local logs with secret redaction.
 - CLI commands for validation, status, scanning, retrying, and diagnostics.
@@ -184,7 +183,6 @@ The daemon should depend on a narrow import contract rather than the implementat
 
 ```http
 POST /v1/journal/imports HTTP/1.1
-Authorization: Bearer <Keychain token>
 Idempotency-Key: sha256:<hex digest>
 Content-Type: multipart/form-data
 ```
@@ -218,7 +216,7 @@ The daemon does not send arbitrary custom headers from configuration in the MVP.
 - Honor a valid bounded `Retry-After` value.
 - Use exponential backoff with jitter and a configurable maximum interval.
 - Treat other `4xx` responses as operator-action failures, retain the spool, and surface them in `status` and logs.
-- Never log authorization tokens or full response bodies that may contain private data.
+- Never log private response bodies that may contain media metadata.
 
 The API must independently authenticate the client, enforce maximum body size, stream uploads instead of buffering them, validate the declared digest, use its own idempotency store, and scan or quarantine unexpected media before downstream processing.
 
@@ -236,20 +234,12 @@ Configuration controls:
 
 - Source IDs and volume matchers.
 - Scan roots, file extensions, exclusions, and stability window.
-- API base URL, import path, timeout, and Keychain token reference.
+- API base URL, import path, timeout, and explicit destination route.
 - Spool location and maximum size.
 - Upload concurrency and spool retention.
 - Log level and directory.
 
-Environment-variable expansion is intentionally excluded from the MVP. It makes LaunchAgent behavior harder to reason about and can expose secrets through process environments. Authentication uses macOS Keychain through:
-
-```bash
-journal-daemon auth set-token
-journal-daemon auth test
-journal-daemon auth delete-token
-```
-
-The token is read interactively without echo and stored as a generic password item under the configured service and account.
+Environment-variable expansion is intentionally excluded from the MVP. It makes LaunchAgent behavior harder to reason about. The upload receiver must be HTTPS, remain localhost-bound behind Tailscale Serve, and be reachable only under the tailnet access policy. The daemon does not send an application bearer token.
 
 Validation commands:
 
@@ -269,9 +259,6 @@ journal-daemon config validate [--config PATH]
 journal-daemon devices list [--verbose] [--json]
 journal-daemon scan [--dry-run] [--source ID]
 journal-daemon retry [--all | --sha256 DIGEST]
-journal-daemon auth set-token
-journal-daemon auth test
-journal-daemon auth delete-token
 journal-daemon doctor [--json]
 journal-daemon version
 ```
@@ -335,22 +322,22 @@ The proposed release workflow updates the tag, immutable revision, formula URL m
 - The upgrade workflow restarts the service only after a successful install.
 - SQLite migrations are forward-only, transactional, and backed up before schema changes.
 - An older binary must refuse to open a newer unsupported state schema.
-- Uninstall leaves configuration, Keychain items, state, and unacknowledged spool files in place, and prints explicit cleanup commands.
+- Uninstall leaves configuration, state, and unacknowledged spool files in place, and prints explicit cleanup commands.
 
 ## 11. Security and privacy
 
 - Use HTTPS only, with normal platform certificate validation.
-- Store bearer tokens in Keychain, never in configuration, logs, SQLite, shell history, or Git.
+- Use Tailscale Serve and tailnet access policy as the ingestion authorization boundary. Do not expose the receiver with Funnel or a public proxy.
 - Run as the current user with no root requirement.
 - Do not listen on local or public network ports.
 - Reject source paths that escape the mounted volume through symlinks or path traversal.
 - Open files without following unexpected symbolic links where the platform API permits it.
 - Validate that the volume is still the same mounted device throughout discovery and copy.
 - Bound file size, spool size, concurrent uploads, retry rate, log size, and response body size.
-- Redact tokens, query strings, home-directory paths when appropriate, and private API bodies.
+- Redact query strings, home-directory paths when appropriate, and private API bodies.
 - Give each source a stable non-secret ID; do not transmit hardware serial numbers unless the user explicitly enables it.
 - Preserve recordings on the device and in the spool until server acknowledgement.
-- Keep configuration at mode `0600` when it contains private endpoint details, even though the token is in Keychain.
+- Keep configuration at mode `0600` when it contains private endpoint and route details.
 
 ## 12. Observability and recovery
 
@@ -441,7 +428,7 @@ The exact audit command may differ for the explicit-URL tap and will be finalize
 
 ### M2: API uploader
 
-- Keychain authentication, streaming multipart upload, idempotency, retry policy, response validation, and fake-server tests.
+- Tailscale-only receiver checks, streaming multipart upload, idempotency, retry policy, response validation, and fake-server tests.
 - Contract test against a non-production API environment.
 
 ### M3: Homebrew and LaunchAgent
@@ -473,10 +460,10 @@ The MVP is complete only when:
 6. Network and API failures retain the spool and recover automatically.
 7. Unplugging the device during work does not corrupt state or falsely acknowledge a file.
 8. The source recording remains unchanged.
-9. Tokens do not appear in configuration, logs, process arguments, or Git.
+9. The receiver remains private behind Tailscale Serve and tailnet policy, with no application token in configuration, logs, process arguments, or Git.
 10. Status and doctor commands provide enough evidence to diagnose a failure.
 11. Upgrade and service restart preserve pending work.
-12. A second Mac can follow the documented installation without repository-specific manual edits beyond configuration and authentication.
+12. A second Mac can follow the documented installation without repository-specific manual edits beyond private endpoint and route configuration.
 
 ## 16. Open decisions requiring approval
 
@@ -484,7 +471,7 @@ The MVP is complete only when:
 2. What volume name, UUID, directory layout, and filename examples appear on the actual Mac?
 3. Which API receives the recordings, and does it already exist?
 4. Should the API create a Journal repository entry directly, enqueue transcription, or only store raw media?
-5. What authentication should the API issue: long-lived bearer token, short-lived OAuth device authorization, or client certificate?
+5. Which tailnet identities and access rules may reach the private API receiver?
 6. What is the maximum expected recording size and acceptable local spool limit?
 7. Is macOS 13 an acceptable minimum?
 8. Should the source repository remain private, or become public for frictionless Homebrew installation, and which source license should apply?

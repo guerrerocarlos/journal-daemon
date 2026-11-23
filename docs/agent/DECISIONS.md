@@ -7,7 +7,7 @@
 - Use a per-user LaunchAgent managed by `brew services`, not a privileged LaunchDaemon.
 - Compile from source during Homebrew installation. Do not publish Homebrew bottles or precompiled executables.
 - Use strict versioned JSON configuration to avoid a third-party configuration parser in the first source build.
-- Store API credentials in macOS Keychain and only store their service/account reference in configuration.
+- Use a private Tailscale HTTPS receiver as the ingestion authorization boundary. Do not store an application API credential in configuration or Keychain.
 - Copy stable recordings to an atomic local spool before upload.
 - Use SQLite and SHA-256 for crash recovery, acknowledgement state, and deduplication.
 - Never delete or modify DJI source files in the MVP.
@@ -24,7 +24,7 @@
 
 - Poll mounted volumes every 15 seconds as the portable first implementation of live device discovery. A startup scan and durable state make restarts safe.
 - Copy eligible stable files into the local spool before any network operation, compute SHA-256 while copying, and record the copy in SQLite before upload.
-- Use Keychain for the destination bearer token, HTTPS-only destination URLs, an idempotency key derived from SHA-256, and bounded retry backoff in SQLite.
+- Use HTTPS-only destination URLs, an idempotency key derived from SHA-256, and bounded retry backoff in SQLite.
 - Keep source-device files immutable and reject configuration that requests source deletion.
 - Require a `.journal-daemon` directory at each source volume root as an explicit physical-media opt-in. A matching volume without the marker is ignored.
 - Run the per-user service as an accessory app so it can show a menu-bar indicator only while a configured matching USB volume is connected. During a network upload it remains visible with active filename and byte-level URLSession progress. The indicator is informational and never alters source media.
@@ -38,5 +38,5 @@
 ## 2026-11-18: Telegram bridge media ingestion
 
 - Deliver spool files to the existing Telegram bridge over Tailscale HTTPS, not directly to the Journal Git repository.
-- Require a bridge bearer token in macOS Keychain, SHA-256 idempotency, and an explicit configured Telegram chat and forum-topic route in each daemon destination.
+- Use the private tailnet access policy and Tailscale Serve as the authorization boundary, plus SHA-256 idempotency and an explicit configured Telegram chat and forum-topic route in each daemon destination. Do not expose this endpoint through Funnel or a public proxy.
 - The bridge must reject unbound routes, then send the audio into the requested topic and feed the same bytes through the Journal archival pipeline.

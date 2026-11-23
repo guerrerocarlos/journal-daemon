@@ -48,11 +48,11 @@ brew services list
 journal-daemon status --config ~/.config/journal-daemon/config.json
 ```
 
-The formula runs `swift build --configuration release` during installation. The service will remain healthy without a Keychain token when there are no pending spooled files. Before enabling uploads, set the Tailscale bridge hostname plus a bound Telegram `chatId` and `messageThreadId`, then use `journal-daemon auth set-token --config ~/.config/journal-daemon/config.json` to save the approved token to Keychain. The token is never stored in JSON.
+The formula runs `swift build --configuration release` during installation. Before enabling uploads, set the private Tailscale bridge hostname plus a bound Telegram `chatId` and `messageThreadId`. No application token is required: the bridge must remain localhost-bound behind Tailscale Serve, with access limited by tailnet policy.
 
 ## Telegram bridge ingestion
 
-The daemon uploads multipart audio to `https://<bridge-tailnet-name>/journal-daemon/v1/imports`. Its `destination.route` selects the Telegram group and forum topic. The LIFE Journal route is chat `-1004361900873`, topic `5701`. The bridge checks the exact route is currently bound and configured for Journal media, then posts the audio and archives it. The endpoint is Tailscale-only and its bearer token must be configured in the bridge service environment.
+The daemon uploads multipart audio to `https://<bridge-tailnet-name>/journal-daemon/v1/imports`. Its `destination.route` selects the Telegram group and forum topic. The LIFE Journal route is chat `-1004361900873`, topic `5701`. The bridge checks the exact route is currently bound and configured for Journal media, then posts the audio and archives it. The endpoint is Tailscale-only. Never use Funnel or a public proxy.
 
 ```bash
 brew services restart journal-daemon
@@ -81,7 +81,7 @@ On 2026-11-18, `air15` passed `swift test`, `brew install --HEAD --build-from-so
 
 On 2026-11-18, `air15` compiled the runtime with `swift test`. A synthetic stable WAV under a temporary mounted-root fixture was spooled exactly once and reported `pending=1` after a second scan, proving durable SQLite deduplication. The current source-only formula installed as `HEAD-d6e1b08`; `brew test journal-daemon`, `brew services start journal-daemon`, and `brew services restart journal-daemon` succeeded. The configured destination is still the non-routable example endpoint, so no live media upload has been attempted.
 
-The installed `air15` formula was subsequently refreshed to `HEAD-93c49a6` and its LaunchAgent was started after the no-echo Keychain token-entry update.
+The installed `air15` formula was subsequently refreshed to `HEAD-93c49a6` and its LaunchAgent was started. A later revision removes the obsolete application-token configuration.
 
 ## Installation page
 

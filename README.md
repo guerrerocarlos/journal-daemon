@@ -28,11 +28,10 @@ cp "$(brew --prefix journal-daemon)/share/journal-daemon/config.example.json" \
   ~/.config/journal-daemon/config.json
 chmod 600 ~/.config/journal-daemon/config.json
 journal-daemon config validate --config ~/.config/journal-daemon/config.json
-journal-daemon auth set-token --config ~/.config/journal-daemon/config.json
 brew services start journal-daemon
 ```
 
-`auth set-token` uses a no-echo interactive prompt. Check the durable spool and service with `journal-daemon status --config ~/.config/journal-daemon/config.json` and `brew services list`. The checked-in endpoint is a placeholder, so replace `destination.baseURL` only with the approved HTTPS import API before storing a token.
+Check the durable spool and service with `journal-daemon status --config ~/.config/journal-daemon/config.json` and `brew services list`. The checked-in endpoint is a placeholder, so replace `destination.baseURL` only with the approved private Tailscale HTTPS import API. The daemon sends no application bearer token: Tailscale Serve and tailnet access policy protect the receiver.
 
 ## USB opt-in marker
 

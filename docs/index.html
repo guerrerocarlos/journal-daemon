@@ -51,7 +51,7 @@ journal-daemon doctor</code></pre>
           <li>Runs <code>swift build --configuration release</code> on your Mac.</li>
           <li>Installs the resulting <code>journal-daemon</code> binary and a non-secret configuration example.</li>
         </ul>
-        <p class="notice">The daemon only accepts a configured USB source when its root contains a <code>.journal-daemon</code> folder. It atomically spools stable recordings, preserves source files, and runs as a per-user LaunchAgent. A menu-bar drive icon appears while an opted-in USB source is connected, then shows the upload filename and byte progress while media is sent. A real upload needs your approved HTTPS API URL and Keychain token.</p>
+        <p class="notice">The daemon only accepts a configured USB source when its root contains a <code>.journal-daemon</code> folder. It atomically spools stable recordings, preserves source files, and runs as a per-user LaunchAgent. A menu-bar drive icon appears while an opted-in USB source is connected, then shows the upload filename and byte progress while media is sent. A real upload needs your approved private Tailscale HTTPS API URL.</p>
       </section>
 
       <section>
@@ -70,7 +70,7 @@ cp "$(brew --prefix journal-daemon)/share/journal-daemon/config.example.json" ~/
 chmod 600 ~/.config/journal-daemon/config.json
 journal-daemon config validate --config ~/.config/journal-daemon/config.json
 brew services start journal-daemon</code></pre>
-        <p>Do not put API tokens in the configuration file. Set the approved token only with <code>journal-daemon auth set-token --config ~/.config/journal-daemon/config.json</code>, which prompts without echoing it. The daemon retains spool files until the server acknowledges each upload.</p>
+        <p>Use only an approved private Tailscale HTTPS API URL. The receiver must stay localhost-bound behind Tailscale Serve and tailnet access policy. The daemon retains spool files until the server acknowledges each upload.</p>
         <p>See the <a href="https://github.com/guerrerocarlos/journal-daemon/blob/main/docs/PROPOSAL.md">technical proposal</a> and <a href="https://github.com/guerrerocarlos/journal-daemon">repository</a> for current scope and safety constraints.</p>
       </section>
       <footer>Journal Daemon, source-built by design.</footer>
