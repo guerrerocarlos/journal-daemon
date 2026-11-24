@@ -49,7 +49,9 @@ public final class StateStore {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let path = directory.appendingPathComponent("state.sqlite").path
         guard sqlite3_open_v2(path, &db, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else { throw DaemonError.message("Cannot open state database.") }
-        try execute("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS files (digest TEXT PRIMARY KEY, source_id TEXT NOT NULL, original_path TEXT NOT NULL, spool_path TEXT NOT NULL, bytes INTEGER NOT NULL, status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_attempt REAL NOT NULL DEFAULT 0, last_error TEXT, import_id TEXT, created_at REAL NOT NULL, acknowledged_at REAL);")
+        try execute("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS files (digest TEXT PRIMARY KEY, source_id TEXT NOT NULL, original_path TEXT NOT NULL, spool_path TEXT NOT NULL, bytes INTEGER NOT NULL, status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_attempt REAL NOT NULL DEFAULT 0, last_error TEXT, import_id TEXT, marker_path TEXT, capture_timestamp TEXT, created_at REAL NOT NULL, acknowledged_at REAL);")
+        try? execute("ALTER TABLE files ADD COLUMN marker_path TEXT;")
+        try? execute("ALTER TABLE files ADD COLUMN capture_timestamp TEXT;")
     }
     deinit { sqlite3_close(db) }
     private func execute(_ sql: String) throws { guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else { throw DaemonError.message("SQLite error: \(String(cString: sqlite3_errmsg(db)))") } }
@@ -58,11 +60,11 @@ public final class StateStore {
         var rows: [[String: String]] = []; while sqlite3_step(statement) == SQLITE_ROW { var row: [String: String] = [:]; for index in 0..<sqlite3_column_count(statement) { row[String(cString: sqlite3_column_name(statement, index))] = sqlite3_column_text(statement, index).map { String(cString: $0) } ?? "" }; rows.append(row) }; return rows
     }
     public func hasDigest(_ digest: String) throws -> Bool { try !query("SELECT digest FROM files WHERE digest=? LIMIT 1") { sqlite3_bind_text($0, 1, digest, -1, SQLITE_TRANSIENT) }.isEmpty }
-    public func insert(digest: String, source: String, original: String, spool: String, bytes: Int64) throws {
-        var statement: OpaquePointer?; let sql = "INSERT OR IGNORE INTO files (digest,source_id,original_path,spool_path,bytes,status,created_at) VALUES (?,?,?,?,?,'pending',?)"; guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { throw DaemonError.message("SQLite insert error.") }; defer { sqlite3_finalize(statement) }
-        [digest, source, original, spool].enumerated().forEach { sqlite3_bind_text(statement, Int32($0.offset + 1), $0.element, -1, SQLITE_TRANSIENT) }; sqlite3_bind_int64(statement, 5, bytes); sqlite3_bind_double(statement, 6, Date().timeIntervalSince1970); guard sqlite3_step(statement) == SQLITE_DONE else { throw DaemonError.message("SQLite insert failed.") }
+    public func insert(digest: String, source: String, original: String, spool: String, markerPath: String, captureTimestamp: String?, bytes: Int64) throws {
+        var statement: OpaquePointer?; let sql = "INSERT OR IGNORE INTO files (digest,source_id,original_path,spool_path,marker_path,capture_timestamp,bytes,status,created_at) VALUES (?,?,?,?,?,?,?,'pending',?)"; guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { throw DaemonError.message("SQLite insert error.") }; defer { sqlite3_finalize(statement) }
+        [digest, source, original, spool, markerPath].enumerated().forEach { sqlite3_bind_text(statement, Int32($0.offset + 1), $0.element, -1, SQLITE_TRANSIENT) }; if let captureTimestamp { sqlite3_bind_text(statement, 6, captureTimestamp, -1, SQLITE_TRANSIENT) } else { sqlite3_bind_null(statement, 6) }; sqlite3_bind_int64(statement, 7, bytes); sqlite3_bind_double(statement, 8, Date().timeIntervalSince1970); guard sqlite3_step(statement) == SQLITE_DONE else { throw DaemonError.message("SQLite insert failed.") }
     }
-    public func pending() throws -> [[String: String]] { try query("SELECT digest,source_id,original_path,spool_path,bytes,attempts FROM files WHERE status='pending' AND next_attempt <= strftime('%s','now') ORDER BY created_at LIMIT 20") }
+    public func pending() throws -> [[String: String]] { try query("SELECT digest,source_id,original_path,spool_path,marker_path,capture_timestamp,bytes,attempts FROM files WHERE status='pending' AND next_attempt <= strftime('%s','now') ORDER BY created_at LIMIT 20") }
     public func acknowledge(_ digest: String, importID: String?) throws { try execute("UPDATE files SET status='acknowledged', import_id=\(sql(importID ?? "")), acknowledged_at=strftime('%s','now'), last_error=NULL WHERE digest=\(sql(digest));") }
     public func fail(_ digest: String, error: String) throws {
         let safeError = sql(String(error.prefix(500)))
@@ -77,6 +79,9 @@ public final class StateStore {
 public final class Ingestor {
     private let config: Configuration; private let store: StateStore; private let spool: URL
     private static let trashDirectoryNames: Set<String> = [".trashes", ".trash", "$recycle.bin", "trash", "trashed", "deleted items"]
+    private static let cursorFilename = "last-processed.json"
+    private struct Cursor: Codable { let version: Int; let latestProcessedTimestamp: String; let latestProcessedPath: String; let acknowledgedAt: String }
+    private var futureTimestampObservations: [String: Int64] = [:]
     public init(config: Configuration) throws { self.config = config; spool = config.expandedSpoolDirectory(); store = try StateStore(directory: spool) }
     public struct ConnectedSource: Equatable { public let id: String; public let volumeName: String }
     public func connectedSources() -> [ConnectedSource] {
@@ -108,17 +113,42 @@ public final class Ingestor {
             let values = try file.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey])
             if Self.isTrashedPath(file) { if values.isDirectory == true { iterator.skipDescendants() }; continue }
             guard values.isRegularFile == true, values.isSymbolicLink != true else { continue }
-            let extensionAllowed = source.includeExtensions.contains(file.pathExtension.lowercased()); let excluded = source.excludeNameRegex.map { file.lastPathComponent.range(of: $0, options: .regularExpression) != nil } ?? false
-            guard extensionAllowed, !excluded, Date().timeIntervalSince(values.contentModificationDate ?? Date()) >= Double(source.stableForSeconds) else { continue }
-            let relative = file.path.replacingOccurrences(of: volume.path + "/", with: ""); if dryRun { print("Would spool \(relative)"); count += 1; continue }
-            if try copy(file: file, sourceID: source.id, original: relative) { count += 1 }
+            let extensionAllowed = source.includeExtensions.contains(file.pathExtension.lowercased()); let excluded = Self.isAppleDoubleFile(file) || (source.excludeNameRegex.map { file.lastPathComponent.range(of: $0, options: .regularExpression) != nil } ?? false)
+            let age = Date().timeIntervalSince(values.contentModificationDate ?? Date())
+            let size = Int64(values.fileSize ?? 0)
+            let stableFutureTimestamp = age < 0 && futureTimestampObservations.updateValue(size, forKey: file.path) == size
+            guard extensionAllowed, !excluded, age >= Double(source.stableForSeconds) || stableFutureTimestamp else { continue }
+            let relative = file.path.replacingOccurrences(of: volume.path + "/", with: ""); let captureTimestamp = Self.captureTimestamp(for: file)
+            if let cursor = cursor(for: volume), let captureTimestamp, captureTimestamp <= cursor.latestProcessedTimestamp { continue }
+            if dryRun { print("Would spool \(relative)"); count += 1; continue }
+            if try copy(file: file, sourceID: source.id, original: relative, marker: volume.appendingPathComponent(".journal-daemon", isDirectory: true), captureTimestamp: captureTimestamp) { count += 1 }
         }; return count
     }
     static func isTrashedPath(_ url: URL) -> Bool { url.pathComponents.contains { Self.trashDirectoryNames.contains($0.lowercased()) } }
-    private func copy(file: URL, sourceID: String, original: String) throws -> Bool {
+    static func isAppleDoubleFile(_ url: URL) -> Bool { url.lastPathComponent.hasPrefix("._") }
+    static func captureTimestamp(for file: URL) -> String? {
+        let name = file.deletingPathExtension().lastPathComponent
+        guard let match = try? NSRegularExpression(pattern: "(?:^|_)([0-9]{8}_[0-9]{6})$", options: []).firstMatch(in: name, range: NSRange(name.startIndex..., in: name)), let range = Range(match.range(at: 1), in: name) else { return nil }
+        return String(name[range])
+    }
+    private func cursor(for volume: URL) -> Cursor? {
+        let url = volume.appendingPathComponent(".journal-daemon", isDirectory: true).appendingPathComponent(Self.cursorFilename)
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(Cursor.self, from: data)
+    }
+    private func advanceCursor(for record: [String: String]) {
+        guard let timestamp = record["capture_timestamp"], !timestamp.isEmpty, let original = record["original_path"], let markerPath = record["marker_path"], FileManager.default.fileExists(atPath: markerPath) else { return }
+        let url = URL(fileURLWithPath: markerPath, isDirectory: true).appendingPathComponent(Self.cursorFilename)
+        if let existing = cursor(for: URL(fileURLWithPath: markerPath).deletingLastPathComponent()), existing.latestProcessedTimestamp >= timestamp { return }
+        let formatter = ISO8601DateFormatter(); let cursor = Cursor(version: 1, latestProcessedTimestamp: timestamp, latestProcessedPath: original, acknowledgedAt: formatter.string(from: Date()))
+        guard let data = try? JSONEncoder().encode(cursor) else { return }
+        let temporary = url.deletingLastPathComponent().appendingPathComponent(".last-processed-\(UUID().uuidString)")
+        do { try data.write(to: temporary, options: .atomic); _ = try FileManager.default.replaceItemAt(url, withItemAt: temporary) } catch { if !FileManager.default.fileExists(atPath: url.path) { try? FileManager.default.moveItem(at: temporary, to: url) } else { try? FileManager.default.removeItem(at: temporary) } }
+    }
+    private func copy(file: URL, sourceID: String, original: String, marker: URL, captureTimestamp: String?) throws -> Bool {
         let temporary = spool.appendingPathComponent(".copy-\(UUID().uuidString)"); FileManager.default.createFile(atPath: temporary.path, contents: nil); let input = try FileHandle(forReadingFrom: file); let output = try FileHandle(forWritingTo: temporary); defer { try? input.close(); try? output.close() }
         var hash = SHA256(); var bytes: Int64 = 0; while true { let data = try input.read(upToCount: 1_048_576) ?? Data(); if data.isEmpty { break }; hash.update(data: data); try output.write(contentsOf: data); bytes += Int64(data.count) }; try output.synchronize(); let digest = hash.finalize().map { String(format: "%02x", $0) }.joined(); if try store.hasDigest(digest) { try? FileManager.default.removeItem(at: temporary); return false }
-        let destination = spool.appendingPathComponent(digest + "-" + file.lastPathComponent); try FileManager.default.moveItem(at: temporary, to: destination); try store.insert(digest: digest, source: sourceID, original: original, spool: destination.path, bytes: bytes); return true
+        let destination = spool.appendingPathComponent(digest + "-" + file.lastPathComponent); try FileManager.default.moveItem(at: temporary, to: destination); try store.insert(digest: digest, source: sourceID, original: original, spool: destination.path, markerPath: marker.path, captureTimestamp: captureTimestamp, bytes: bytes); return true
     }
     public struct UploadProgress { public let filename: String; public let completedBytes: Int64; public let totalBytes: Int64 }
     public func uploadPending(progress: ((UploadProgress?) -> Void)? = nil) throws {
@@ -132,6 +162,7 @@ public final class Ingestor {
                     progress?(UploadProgress(filename: filename, completedBytes: min(sent, total), totalBytes: total))
                 }
                 try store.acknowledge(record["digest"]!, importID: id)
+                advanceCursor(for: record)
                 if !config.behavior.keepSpoolAfterUpload { try? FileManager.default.removeItem(atPath: record["spool_path"]!) }
             } catch { try store.fail(record["digest"]!, error: error.localizedDescription) }
             progress?(nil)

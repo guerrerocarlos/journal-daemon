@@ -18,6 +18,14 @@ mkdir /Volumes/YOUR_DRIVE/.journal-daemon
 
 Without that exact directory, the daemon ignores the volume, including its menu-bar connection status.
 
+After a successful upload of a DJI timestamped filename, inspect the per-volume cursor with:
+
+```sh
+cat /Volumes/YOUR_DRIVE/.journal-daemon/last-processed.json
+```
+
+The cursor advances only after receiver acknowledgement. It causes future scans to skip DJI-style timestamped media at or before the recorded timestamp. It does not modify or delete source media. To intentionally replay historical timestamped media from that drive, stop the service and remove only `last-processed.json`, then restart the service.
+
 The example configuration uses `nameRegex: ".*"` because DJI commonly stores its identity in folders such as `DJI_Audio_001` inside a generically named volume. The required marker and removable-media rule are the safety boundary. Narrow `nameRegex` only when a specific volume name is reliable.
 
 The scanner permanently excludes files below `.Trashes`, `.Trash`, `$RECYCLE.BIN`, `Trash`, `Trashed`, and `Deleted Items` directories. This is not configurable and applies before copying or hashing.

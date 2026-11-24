@@ -30,6 +30,13 @@
 - Treat all files below known removable-media trash directories as ineligible, independent of source extension or configured filename exclusion. Never copy, hash, spool, or upload them.
 - Run the per-user service as an accessory app so it can show a menu-bar indicator only while a configured matching USB volume is connected. During a network upload it remains visible with active filename and byte-level URLSession progress. The indicator is informational and never alters source media.
 
+## 2026-11-24: Per-volume acknowledged-media cursor
+
+- Store `.journal-daemon/last-processed.json` only after a timestamped DJI recording has been acknowledged by the receiver. The file contains the newest processed capture timestamp and relative path, so future scans of that same opted-in volume skip timestamped media at or before it.
+- The cursor is daemon control metadata inside the explicit marker directory, never a change to DJI recordings. Files without a recognized DJI timestamp retain normal digest-based processing.
+- Ignore AppleDouble `._*` sidecar files even when their names end in an included media extension.
+- When a recorder timestamp is ahead of the Mac clock, require two consecutive scans with the same byte size before considering that future-dated file stable. This prevents a clock mismatch from blocking ingestion indefinitely without weakening protection for an active recording.
+
 ## 2026-11-18: Tailscale bell bridge
 
 - Use strict-host-checked system SSH over Tailscale MagicDNS as the first remote sound transport instead of adding an HTTP listener to every Mac. Tailscale SSH server mode was not enabled on the first target Mac.

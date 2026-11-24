@@ -1,6 +1,6 @@
 # Journal Daemon State
 
-Last updated: 2026-11-23
+Last updated: 2026-11-24
 
 - Repository: `guerrerocarlos/journal-daemon` (public as of 2026-11-18)
 - Local workspace: `/home/gnu/journal-daemon`
@@ -23,6 +23,7 @@ Last updated: 2026-11-23
 - Both fleet Macs are now on `HEAD-1fde6b6`, which unconditionally excludes removable-media trash directories. A query of `air15`'s pending state confirmed zero previously spooled paths under those directories.
 - Air15's actual marked removable volume is `DJI_MIC_2`; its validated local matcher is now `.*`, and 36 recordings remain safely pending in the durable spool. A source-verified multipart-body append fix is ready to roll out so those files reach the bridge with both required form parts.
 - Live ingestion acceptance passed on 2026-11-23: Air15 uploaded all 36 spooled DJI WAV recordings through the private Tailscale Serve route. The bridge converted them to MP3, delivered them to the configured LIFE Journal topic, and completed mechanical archival. Air15 and Pro13 were source-upgraded to `HEAD-95e36ea` afterward.
+- The current rollout adds a per-volume `.journal-daemon/last-processed.json` cursor after receiver acknowledgement. It is intended to let an opted-in drive process only newer DJI-style timestamped media while preserving the source files unchanged.
 - Proposed implementation is a native Swift executable installed from source by Homebrew and run as a per-user LaunchAgent through `brew services`.
 - Configuration is strict versioned JSON at `~/.config/journal-daemon/config.json`; its receiver must be a private Tailscale HTTPS endpoint protected by Tailscale Serve and tailnet policy.
 - Source recordings remain unchanged. The MVP does not delete files from DJI devices.

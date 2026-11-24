@@ -45,6 +45,10 @@ mkdir /Volumes/YOUR_DRIVE/.journal-daemon
 
 The existing source rules still apply, including the configurable volume-name selector, removable-media requirement, and audio extensions. The checked-in default accepts any removable volume only after the marker is present, so DJI folder names such as `DJI_Audio_001` are discovered inside the opted-in drive rather than being mistaken for its volume name.
 
+After an eligible DJI-style filename is acknowledged by the receiver, the daemon writes `.journal-daemon/last-processed.json` on that same volume. It records the filename capture timestamp and path, and later scans skip matching timestamped media at or before that cursor. The cursor is control metadata only: recordings remain untouched. Remove this file only when you intentionally want that drive scanned from the beginning again.
+
+Some recorders write a clock that is ahead of the Mac. A future-dated file is accepted only after two unchanged daemon scans, rather than being blocked indefinitely or accepted while it is still being written.
+
 Files inside removable-drive trash folders are never ingested, even if their extension matches. This includes `.Trashes`, `.Trash`, `$RECYCLE.BIN`, `Trash`, `Trashed`, and `Deleted Items` directories.
 
 ## Tailscale bell bridge
