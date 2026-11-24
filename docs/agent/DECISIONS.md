@@ -46,3 +46,8 @@
 
 - Treat `air15` and `pro13` as the deployment fleet. Every daemon improvement should be installed and verified on both Macs when they are reachable, and any unavailable machine must be reported explicitly.
 - Have the running per-user daemon check its approved public Homebrew tap every 24 hours. When a new HEAD revision is available, source-build it and restart only after Homebrew completes the upgrade successfully.
+
+## 2026-11-23: Multipart upload construction
+
+- Construct multipart request bodies on disk so large spool files do not enter process memory.
+- After writing the metadata and file-part header, explicitly seek to the end before appending recording bytes. Reopening at offset zero overwrites the metadata header and makes the receiver correctly reject the request as malformed.
