@@ -51,3 +51,4 @@
 
 - Construct multipart request bodies on disk so large spool files do not enter process memory.
 - After writing the metadata and file-part header, explicitly seek to the end before appending recording bytes. Reopening at offset zero overwrites the metadata header and makes the receiver correctly reject the request as malformed.
+- Set `Content-Length` from the completed on-disk body before starting the URLSession upload, so the Tailscale proxy receives a bounded multipart request rather than relying on transfer framing.
